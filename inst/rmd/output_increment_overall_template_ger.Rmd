@@ -1,0 +1,474 @@
+---
+params:
+  x:
+title: "\\fontsize{14}{16}\\selectfont Zuwachs auf Betriebsebene -- Wiederholungsinventur"
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=1.5cm,right=1.5cm,top=1.5cm,bottom=2cm"
+fontsize: 10pt
+header-includes:
+  - \usepackage{siunitx}
+  - \sisetup{output-decimal-marker = {,}, group-separator = {\,}}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{makecell}
+  - \usepackage{array}
+  # Custom column type with extra right-side gap, used between
+  # column 3 (einzelbaumbasiert / zv (m^3/ha/J)) and column 4
+  # (ertragsgeschichtlich / zv (m^3/J)) so the two blocks visually
+  # separate. The @{...} declaration replaces the default \tabcolsep
+  # separator with the explicit \hspace, so we set it a bit wider than
+  # the default 6pt to add ~6pt of visible gap.
+  - \newcolumntype{G}{r@{\hspace{2em}}}
+  # Suppress page numbers. The output is always a single page by
+  # design (one summary table + meta block + footnote). \maketitle
+  # otherwise applies \thispagestyle{plain} which prints a centred
+  # "1" at the bottom -- we override both `plain` and the global
+  # pagestyle to render an empty footer instead. If a future variant
+  # ever spans multiple pages, swap this for a conditional setup
+  # based on `lastpage` + `fancyhdr`.
+  - \usepackage{fancyhdr}
+  - \pagestyle{empty}
+  - \fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+```
+
+```{r helpers}
+# --- LaTeX cell formatters --------------------------------------------
+# Decimal-point alignment via manual `\hphantom{}` padding inside plain
+# `r`-aligned columns. siunitx S columns with `table-format` and
+# `separate-uncertainty` proved unreliable inside kableExtra's
+# pack_rows output, so we do the padding ourselves: deterministic, no
+# external dependencies on column-type parsing.
+#
+# Per column, we know the maximum integer-part width across all rows
+# (computed once outside, see build-unified-table chunk). For each cell:
+#   - prepend `\hphantom{00}` for each missing integer-part digit so
+#     the value's decimal lands at a fixed column position;
+#   - if a CI is present, do the same for its integer part;
+#   - if no CI, append a right-side `\hphantom{...}` matching the
+#     width of " ± XXX,Y" so cells without CI still have the same
+#     total width as cells with CI -- this keeps the column visually
+#     coherent.
+
+# Integer-part digit count (e.g. 5.9 -> 1, 190.1 -> 3, 0.0 -> 1).
+n_int_digits <- function(v) {
+  if (length(v) == 0L || all(is.na(v))) return(1L)
+  v <- v[!is.na(v)]
+  vals <- floor(abs(v))
+  strs <- formatC(vals, format = "d", big.mark = "")
+  max(nchar(strs), 1L)
+}
+
+# All \hphantom{} contents are wrapped in \textnormal{} so the phantom
+# width is measured in the upright/regular font, even when the cell is
+# later wrapped in \textbf{} (which kableExtra::row_spec does for the
+# "Summe" rows). Without \textnormal{}, bold digit metrics make the
+# Summe cells minimally wider than the rest, and r-alignment pulls the
+# Summe value visibly to the left.
+
+# A "\num{X.Y}" call with leading `\hphantom{0..0}` so the decimal
+# marker ends up at a fixed offset from the left of the cell.
+pad_num <- function(val, max_int, digits) {
+  v_int  <- floor(abs(val))
+  v_n    <- nchar(formatC(v_int, format = "d", big.mark = ""))
+  pad    <- max_int - v_n
+  prefix <- if (pad > 0L) {
+    paste0("\\hphantom{\\textnormal{", strrep("0", pad), "}}")
+  } else ""
+  paste0(prefix, sprintf("\\num{%.*f}", digits, val))
+}
+
+# Build one fully-padded LaTeX cell. NA-val -> empty cell (rendered as
+# a phantom that matches the full width of a value-only cell, so the
+# column geometry stays consistent across rows).
+fmt_cell <- function(val, ci, max_val_int, max_ci_int, digits) {
+  if (is.na(val)) {
+    # Fully empty cell: phantom of "VVV,Y \pm CCC,Y" width
+    return(paste0(
+      "\\hphantom{\\textnormal{",
+      strrep("0", max_val_int), ",", strrep("0", digits),
+      "\\,\\ensuremath{\\pm}\\,",
+      strrep("0", max_ci_int), ",", strrep("0", digits),
+      "}}"
+    ))
+  }
+  val_part <- pad_num(val, max_val_int, digits)
+  if (is.na(ci)) {
+    # Value-only: right-pad with phantom of "\,\pm\,CCC,Y" width
+    rp <- paste0(
+      "\\hphantom{\\textnormal{\\,\\ensuremath{\\pm}\\,",
+      strrep("0", max_ci_int), ",", strrep("0", digits), "}}"
+    )
+    return(paste0(val_part, rp))
+  }
+  ci_part <- pad_num(ci, max_ci_int, digits)
+  paste0(val_part, "\\,\\ensuremath{\\pm}\\,", ci_part)
+}
+
+# Vectorise: build a character vector of LaTeX cells, one per row.
+vfmt_cell <- function(val, ci, max_val_int, max_ci_int, digits) {
+  mapply(
+    fmt_cell, val, ci,
+    MoreArgs = list(max_val_int = max_val_int,
+                    max_ci_int  = max_ci_int,
+                    digits      = digits)
+  )
+}
+
+# Escape the LaTeX-special characters that realistically appear in
+# user-supplied strings (subtitle, fill_option name, species label).
+# The big one is '_' which is a math subscript and triggers
+# "Missing $ inserted" in text mode.
+latex_escape <- function(x) {
+  if (length(x) == 0L) return(x)
+  x <- as.character(x)
+  x <- gsub("([&%$#_])", "\\\\\\1", x)
+  x
+}
+
+# species_group as a printable label (uses fe_spec_lang option). The
+# total row is marked separately and gets the "Summe" label.
+fmt_species <- function(sg, is_total) {
+  out <- latex_escape(format(sg))
+  out[is_total] <- "Summe"
+  out
+}
+```
+
+```{r meta-block, results = "asis"}
+m <- params$x$meta
+
+# Forstbetrieb name (= optional user_subtitle), centred just below
+# the title. \maketitle has a large bottom skip plus \begin{center}
+# adds a paragraph break; \vspace{-3em} closes both gaps so the
+# Forstbetrieb name sits right under the title. All user-supplied
+# strings may contain underscores -- escape before emitting.
+if (!is.null(m$user_subtitle)) {
+  cat("\\vspace{-3em}\\begin{center}\n",
+      "{\\large\\textbf{", latex_escape(m$user_subtitle), "}}\n",
+      "\\end{center}\n", sep = "")
+}
+
+# Meta block, flushleft. The two survey years are right-aligned with
+# each other inside a small two-column tabular ("Inventur:" label and
+# "Vorhergehende Inventur:" label both flush left; both years end at
+# the same horizontal position). Period, method, and fill_option
+# follow as plain flushleft lines below.
+method_str <- if (!is.null(m$method)) {
+  latex_escape(m$method)
+} else {
+  "nicht angegeben"
+}
+fill_option_str <- latex_escape(m$fill_option)
+
+# Gesamtfläche and Inventurpunkte of the *current* inventory (A + B).
+# These go into a third tabular column that is filled only on the
+# current-inventory row -- the year column (col 2) therefore stays as
+# narrow as before, so the two right-aligned years do not shift.
+area_curr_str <- format(round(m$plot_match_stats$area_total_2nd_ha),
+                        big.mark = ".", decimal.mark = ",",
+                        scientific = FALSE)
+n_curr        <- m$plot_match_stats$n_total_2nd
+
+cat("\\begin{flushleft}\n")
+cat(sprintf(
+  paste0(
+    # `@{}` at the very left of the tabular column spec removes the
+    # default \tabcolsep on the left so the tabular starts flush with
+    # the rest of the meta block; without it the "Inventur:" and
+    # "Vorhergehende Inventur:" labels sit indented relative to the
+    # plain flushleft lines below. The trailing `@{}l` adds a third,
+    # left-aligned column carrying the current inventory's area and
+    # point count; `@{}` keeps col 2 (year) flush against it and the
+    # cell leads with an explicit \hspace so the gap is controlled.
+    "\\begin{tabular}{@{}l@{ }r@{}l}\n",
+    "\\textbf{Inventur:} & %d & \\hspace{2em}\\textbf{Gesamtfläche:} %s ha",
+    "\\hspace{1.5em}\\textbf{Inventurpunkte:} %d \\\\\n",
+    "\\textbf{Vorhergehende Inventur:} & %d & \\\\\n",
+    "\\end{tabular}\\\\\n",
+    "\\textbf{Periode:} %d Jahre\\\\\n",
+    "\\textbf{Berechnungsmethode:} %s\\\\\n",
+    "\\textbf{Ergänzungsmethode:} %s\n"
+  ),
+  m$inv_year_curr,
+  area_curr_str,
+  n_curr,
+  m$inv_year_prev,
+  m$period_yr,
+  method_str,
+  fill_option_str
+))
+cat("\\end{flushleft}\n")
+```
+
+```{r build-unified-table, results = "asis"}
+# --- Pre-compute per-column max integer widths ------------------------
+# The pad widths are shared across all three sections so the value
+# commas align column-wide, not just within a section.
+tm <- params$x$table_matched
+ts <- params$x$table_2nd_only
+tc <- params$x$table_combined
+
+max_int_val_yr <- max(
+  n_int_digits(c(tm$iv_m3_yr_total_st,  tm$iv_m3_yr_total_sum,
+                 ts$iv_m3_yr_total_st,
+                 tc$iv_m3_yr_total_st,  tc$iv_m3_yr_total_sum))
+)
+max_int_ci_yr  <- max(
+  n_int_digits(c(tm$ci95_iv_m3_yr_total_st, tm$ci95_iv_m3_yr_total_sum))
+)
+max_int_val_ha <- max(
+  n_int_digits(c(tm$iv_m3_ha_yr_st,  tm$iv_m3_ha_yr_sum,
+                 ts$iv_m3_ha_yr_st,
+                 tc$iv_m3_ha_yr_st,  tc$iv_m3_ha_yr_sum))
+)
+max_int_ci_ha  <- max(
+  n_int_digits(c(tm$ci95_iv_m3_ha_yr_st, tm$ci95_iv_m3_ha_yr_sum))
+)
+
+# Build the five-column data frame for one input table. sum_block = FALSE
+# (table_2nd_only) leaves the summaric columns empty -- rendered as
+# full-width phantoms so the column geometry stays intact.
+build_rows <- function(tbl, sum_block = TRUE) {
+  spec <- fmt_species(tbl$species_group, tbl$is_total_row)
+
+  st_yr_tot <- vfmt_cell(tbl$iv_m3_yr_total_st, tbl$ci95_iv_m3_yr_total_st,
+                         max_int_val_yr, max_int_ci_yr, 1)
+  st_yr_ha  <- vfmt_cell(tbl$iv_m3_ha_yr_st,    tbl$ci95_iv_m3_ha_yr_st,
+                         max_int_val_ha, max_int_ci_ha, 2)
+  if (sum_block) {
+    sum_yr_tot <- vfmt_cell(tbl$iv_m3_yr_total_sum, tbl$ci95_iv_m3_yr_total_sum,
+                             max_int_val_yr, max_int_ci_yr, 1)
+    sum_yr_ha  <- vfmt_cell(tbl$iv_m3_ha_yr_sum,    tbl$ci95_iv_m3_ha_yr_sum,
+                             max_int_val_ha, max_int_ci_ha, 2)
+  } else {
+    # 2nd_only: summaric block is empty by contract. Render as
+    # full-width phantom so the column width matches the other sections.
+    na_vec <- rep(NA_real_, nrow(tbl))
+    sum_yr_tot <- vfmt_cell(na_vec, na_vec, max_int_val_yr, max_int_ci_yr, 1)
+    sum_yr_ha  <- vfmt_cell(na_vec, na_vec, max_int_val_ha, max_int_ci_ha, 2)
+  }
+
+  data.frame(
+    Artgruppe = spec,
+    v1 = st_yr_tot, v2 = st_yr_ha,
+    v3 = sum_yr_tot, v4 = sum_yr_ha,
+    stringsAsFactors = FALSE
+  )
+}
+
+df_m <- build_rows(tm, sum_block = TRUE)
+df_s <- build_rows(ts, sum_block = FALSE)
+df_c <- build_rows(tc, sum_block = TRUE)
+
+df <- rbind(df_m, df_s, df_c)
+n_m <- nrow(df_m); n_s <- nrow(df_s); n_c <- nrow(df_c)
+
+hdr_iv_yr <- "zv (m\\textsuperscript{3}/J)"
+hdr_iv_ha <- "zv (m\\textsuperscript{3}/ha/J)"
+
+# Plain right-aligned columns. The cells already carry `\hphantom{}`
+# padding so all rows have identical width and the value commas line
+# up at the same horizontal offset.
+k <- knitr::kable(
+  df,
+  format    = "latex",
+  booktabs  = TRUE,
+  escape    = FALSE,
+  # Col 3 uses the custom G type (= r + extra right-side gap) so the
+  # ertragsgeschichtlich block (cols 4-5) sits visibly separated from
+  # the einzelbaumbasiert block (cols 2-3). The G column type is
+  # defined in the YAML header-includes.
+  align     = c("l", "r", "G", "r", "r"),
+  col.names = c("Artgruppe", hdr_iv_yr, hdr_iv_ha, hdr_iv_yr, hdr_iv_ha),
+  linesep   = ""
+)
+
+# Section labels with per-section Inventurpunkt count and area.
+# kableExtra::pack_rows() applies an extra sub("\\\\", ...) pass even
+# when escape = FALSE that strips backslashes from all but the first
+# LaTeX command in the label -- so we avoid LaTeX commands in the
+# label entirely and format the German decimal comma in R. The
+# downside: the parenthesised tail inherits the bold wrap.
+ps <- m$plot_match_stats
+fmt_ha <- function(x) gsub("\\.", ",", sprintf("%.1f", x))
+hdr_A <- sprintf(
+  "Wiederholt gemessene Inventurpunkte (A) (n = %d; %s ha)",
+  ps$n_matched, fmt_ha(ps$area_matched_ha)
+)
+hdr_B <- sprintf(
+  "Nur in der aktuellen Inventur erfasste Punkte (B) -- BWI 3-Rückwärtsschätzung (n = %d; %s ha)",
+  ps$n_2nd_only, fmt_ha(ps$area_2nd_only_ha)
+)
+hdr_C <- sprintf(
+  "Gesamtbetrieb = A + B (n = %d; %s ha)",
+  ps$n_total_2nd, fmt_ha(ps$area_total_2nd_ha)
+)
+
+# Block headers (single-tree / summaric) -- once, at the top of the
+# unified table. The section A label is then stacked *above* this row
+# via a second add_header_above call so it sits immediately under the
+# \toprule (not under the column-header midrule). Sections B and C
+# keep their pack_rows labels in the normal mid-table position.
+k <- k |> kableExtra::add_header_above(
+  c(" " = 1,
+    "einzelbaumbasiert"    = 2,
+    "ertragsgeschichtlich" = 2),
+  escape = FALSE
+)
+
+hdr_A_above <- stats::setNames(5L, hdr_A)
+k <- k |> kableExtra::add_header_above(
+  hdr_A_above,
+  escape = FALSE,
+  bold   = TRUE,
+  align  = "l",
+  line   = FALSE
+)
+
+# Bold the "Summe" rows at the end of each section and put a
+# midrule below Summe(A) and Summe(B) so the next section header
+# (B and C respectively) is visually separated. We deliberately
+# do NOT add an explicit \addlinespace here: kableExtra::pack_rows()
+# already prefixes its label row with \addlinespace[0.3em], so the
+# pack_rows label for sections B and C sits ~0.3em below the
+# preceding \midrule. The section A label gets a matching ~0.4em
+# strut appended above (see add_header_above), keeping the gap
+# below the rule-above-label visually consistent across sections.
+xs_section_break <- "\\midrule"
+
+k <- k |>
+  kableExtra::row_spec(
+    n_m, bold = TRUE,
+    extra_latex_after = xs_section_break
+  ) |>
+  kableExtra::row_spec(
+    n_m + n_s, bold = TRUE,
+    extra_latex_after = xs_section_break
+  ) |>
+  kableExtra::row_spec(
+    n_m + n_s + n_c, bold = TRUE
+  ) |>
+  kableExtra::row_spec(
+    c(n_m - 1L, n_m + n_s - 1L, n_m + n_s + n_c - 1L),
+    extra_latex_after = "\\midrule"
+  )
+
+# Below each section header we add a bit of breathing room before the
+# first data row via extra_latex_after = "\\addlinespace[0.4em]".
+# Section C additionally gets a sub-header row spanning cols 4-5 that
+# announces the mixed methodology of the rightmost block in the
+# Gesamtbetrieb: A's ertragsgeschichtliche Bilanz + B's BWI 3-Schätzung.
+# All three sections use the default latex_gap_space, so the vertical
+# spacing between sections is uniform (the previous "1em" before C
+# made the gap under Summe(B) visibly larger than under Summe(A)).
+xla_AB <- "\\addlinespace[0.4em]"
+# Wrap the section C sub-header text over two lines via \makecell.
+# Single line was wider than the natural cols 4+5 width and forced
+# both columns to expand: that pushed the cols-4-5 visual gap noticeably
+# wider than the cols-2-3 gap (right-aligned content sits at the right
+# edge of each column, so a wider column means more leading whitespace
+# on the left, which reads as extra space between adjacent columns).
+xla_C  <- paste0(
+  " & & & \\multicolumn{2}{c}{\\makecell{ertragsgeschichtlich \\\\",
+  " und BWI 3-Schätzung}}",
+  " \\\\\n\\cmidrule(lr){4-5}\n\\addlinespace[0.4em]"
+)
+
+k <- k |>
+  kableExtra::pack_rows(
+    hdr_B,
+    n_m + 1, n_m + n_s,
+    escape = FALSE, bold = TRUE, latex_align = "l",
+    extra_latex_after = xla_AB
+  ) |>
+  kableExtra::pack_rows(
+    hdr_C,
+    n_m + n_s + 1, n_m + n_s + n_c,
+    escape = FALSE, bold = TRUE, latex_align = "l",
+    extra_latex_after = xla_C
+  ) |>
+  # pack_rows indents its grouped rows with \hspace{1em} automatically.
+  # Section A is added via add_header_above (not pack_rows), so its data
+  # rows would sit flush left while the section B and A+B data rows
+  # carry the indent. Apply the same indent to section A explicitly so
+  # all three sections look consistent.
+  kableExtra::add_indent(seq_len(n_m))
+
+k_styled <- k |> kableExtra::kable_styling(
+  font_size     = 9,
+  latex_options = c("hold_position"),
+  position      = "center"
+)
+
+# Two post-processing steps on the final LaTeX, both needed because
+# kableExtra's add_header_above() and pack_rows() run their label
+# strings through a str_replace-based escape pipeline that strips
+# backslashes from any embedded LaTeX command -- so we can't put the
+# struts/line-breaks into the label itself.
+#
+# (1) Add a small \addlinespace below the section A label row so the
+#     block-header row gets some breathing room from it.
+#
+# (2) Wrap the section B label in \makecell with a line break. Its
+#     full text "Nur in der aktuellen Inventur erfasste Punkte (B) --
+#     BWI 3-Rückwärtsschätzung (n = X; Y,Z ha)" is so wide as a single
+#     \multicolumn{5}{l}{...} row that LaTeX expands the tabular
+#     columns to fit it, which in turn pulls cols 4 and 5 visibly
+#     apart. Splitting after "Rückwärtsschätzung" keeps the same
+#     information without forcing the table wider than the natural
+#     column widths.
+k_styled <- as.character(k_styled)
+k_styled <- sub(
+  "(Wiederholt gemessene Inventurpunkte[^\n]*\n)",
+  "\\1\\\\addlinespace[0.4em]\n",
+  k_styled
+)
+k_styled <- sub(
+  paste0(
+    "\\{\\\\textbf\\{(Nur in der aktuellen Inventur erfasste Punkte ",
+    "\\(B\\) -- BWI 3-Rückwärtsschätzung)",
+    " (\\(n = [0-9]+; [^)]+\\))\\}\\}"
+  ),
+  "{\\\\textbf{\\\\makecell[l]{\\1 \\\\\\\\ \\2}}}",
+  k_styled
+)
+cat(k_styled)
+```
+
+```{r ci-footnote, results = "asis"}
+# Footnote: clarify that the ± values are 95% CI, and that they are
+# only well-defined for the matched (A) section. Wrap in a flushleft
+# environment so pandoc treats the block as raw LaTeX -- otherwise
+# the {\small\itshape ...} group delimiters are emitted as literal
+# braces in the PDF.
+cat("\\begin{flushleft}\n")
+cat("\\vspace{0.5em}\n")
+cat("\\small\\itshape Alle Volumenangaben verstehen sich als ",
+    "Erntefestmeter ohne Rinde (Efm o.R.).\n",
+    sep = "")
+cat("\\par\\vspace{0.3em}\n")
+cat("Die mit \\ensuremath{\\pm} angegebenen Werte ",
+    "sind 95\\,\\%-Konfidenzintervalle der Zuwachswerte; sie sind nur ",
+    "bei den wiederholt gemessenen Inventurpunkten (Tabelle A) ",
+    "sinnvoll bestimmbar.\n",
+    sep = "")
+cat("\\par\\vspace{0.3em}\n")
+cat("Bei kleinen Stichprobenumfängen können beim ",
+    "ertragsgeschichtlichen Zuwachs und bei der Berechnungsmethode ",
+    "\"rep\\_classic\" negative Zuwachswerte auftreten. ",
+    "Das ist statistisch korrekt.\n",
+    sep = "")
+cat("\\end{flushleft}\n")
+```
+
+```{r teardown, include = FALSE}
+options(oo)
+```

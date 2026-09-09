@@ -1,0 +1,45 @@
+Package: FeNEU
+Type: Package
+Title: Routines for Evaluating Forest Inventory Data
+Version: 3.0.2
+Date: 2026-08-27
+Authors@R: 
+  c(
+    person("Peter", "Biber", email = "peter.biber@lwf.bayern.de", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-9700-8708")),
+    person("Astor", "Toraño Caicoya", email = "astor.toranocaicoya@lwf.bayern.de",
+           role = "aut",
+           comment = c(ORCID = "0000-0002-9658-8990"))       
+  )
+Description: 
+  Provides a collection of routines for evaluating data from
+  larger forest management units, typically sample inventories, but also 
+  stand-wise inventories. The idea is to support modern forest planning
+  approaches and to be open by design to new data sources and evaluation
+  methods. For the methodological background of forest inventories see
+  Kangas and Maltamo (2006) "Forest Inventory: Methodology and Applications"
+  <doi:10.1007/1-4020-4381-3>.
+License: AGPL (>= 3)
+Encoding: UTF-8
+Imports: tibble, dplyr, purrr, rlang, Rdpack, tidyr, readr, ggplot2,
+        tidyselect (>= 1.2.0), foreach, doSNOW, lifecycle, parallel,
+        progressr, stringr, stringdist, sf
+RdMacros: Rdpack
+Depends: R (>= 4.4), ForestElementsR (>= 3.0.0)
+Suggests: knitr, kableExtra, rmarkdown, tinytex, testthat (>= 3.0.0)
+SystemRequirements: pandoc (>= 1.12.3) and a LaTeX distribution (e.g.
+        TinyTeX, see ?tinytex::install_tinytex) with the booktabs,
+        longtable, siunitx, and makecell LaTeX packages are required
+        for the *_pdf() output functions.
+Config/testthat/edition: 3
+LazyData: true
+VignetteBuilder: knitr
+Config/roxygen2/version: 8.1.0
+NeedsCompilation: no
+Packaged: 2026-08-27 16:15:25 UTC; casto
+Author: Peter Biber [aut, cre] (ORCID: <https://orcid.org/0000-0002-9700-8708>),
+  Astor Toraño Caicoya [aut] (ORCID:
+    <https://orcid.org/0000-0002-9658-8990>)
+Maintainer: Peter Biber <peter.biber@lwf.bayern.de>
+Repository: CRAN
+Date/Publication: 2026-09-09 15:00:10 UTC

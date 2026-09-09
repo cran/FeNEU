@@ -1,0 +1,592 @@
+---
+params:
+  x:
+  tab_title:
+  type:
+  meta: !r NULL
+  cohort: !r NULL
+title: "Strukturtabelle `r params$tab_title`"
+subtitle: "`r paste0(if(params$type == 'dq') 'nach Mitteldurchmesser-Klassen' else 'nach Altersklassen', if (identical(params$cohort, 'mainstand')) ', Hauptbestand' else if (identical(params$cohort, 'alllayers')) ', Alle Schichten' else paste0(', Benutzerdefinierte Auswahl: ', params$cohort))`"
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=0.7cm,right=0.7cm,top=1cm,bottom=1.2cm"
+fontsize: 10pt
+header-includes:
+  - \renewcommand{\maketitle}{}
+  - \usepackage{array}
+  # adjustbox scales the title on the title page; siunitx used to be loaded
+  # here for "S" columns that were never actually applied (see the width
+  # section in the table chunk).
+  - \usepackage{adjustbox}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+
+# https://haozhu233.github.io/kableExtra/awesome_table_in_html.html
+# https://www.pipinghotdata.com/posts/2022-01-24-report-ready-pdf-tables-with-rmarkdown-knitr-kableextra-and-latex/
+
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+
+# Take the table from params, not from the calling frame. rmarkdown::render()
+# evaluates in the caller's environment, so a bare `x` happened to resolve to
+# the local variable of output_structure_table_pdf() - which only works as long
+# as that argument keeps its name. Everything below works on this local copy.
+x <- params$x
+
+x <- x |> dplyr::ungroup() |>
+  dplyr::filter(.data$variable != "tot_area_class")
+
+class_col <- if (params$type == "age") "age_class" else "d_q_class"
+
+# 1. The confidence interval is shown in the "Gesamt" column only. Per dbh
+# class it is computed over a handful of inventory points - ex3 produces 530 %
+# and 754 % - and such a figure says nothing except that the subgroup is too
+# small to say anything. The Gesamt cell carries the properly aggregated
+# class-wise interval (the very one the base table prints), so the row keeps
+# its meaning without the noise.
+class_cols <- setdiff(names(x), c("species_group", class_col, "variable", "total"))
+x[x$variable == "conf_95_per", class_cols] <- NA
+
+# 2. Translate variable names. The wording follows output_base_table_template_
+# ger.Rmd literally wherever the two tables show the same quantity, so a reader
+# moving between them meets the same labels.
+x <- x |>
+  dplyr::mutate(variable = dplyr::recode(.data$variable,
+    # main-stand (per-ha) variables
+    area_ha      = "Fl. ideell (ha)",
+    n_ha         = "N (/ha)",
+    g_m2_ha      = "G (m²/ha)",
+    v_hub_m3_ha  = "V (m³/ha)",
+    conf_95_per  = "95%-VB (± %)",
+    # non-main-stand (aggregate) variables
+    v_hub_m3     = "V (m³)",
+    g_m2         = "G (m²)",
+    n            = "N",
+    d_q_cm       = "dg (cm)",
+    h_q_m        = "hg (m)",
+    n_plot       = "Anz. Pkte.",
+    # Row content is unchanged (the standing-volume distribution across the dbh
+    # classes, row-normalised, verified against BaySF's own report); only the
+    # label moves into the base table's naming scheme, where a share row says
+    # which quantity is shared out and across what.
+    pct_anteil_v = "V-Ant. Bhd-Kl. (%)"
+  ))
+
+# 2a. The area share needs a block-dependent label, exactly as in the base
+# table, because the one variable carries two meanings. Inside a species block
+# it is that species group's share of the class' ideal area (the Gesamt cell is
+# the species' share of the class). In the cross-species block there is no
+# species left to distinguish, so the same figure becomes the dbh class' share
+# of its own class' ideal area - which is why that block's Gesamt cell reads
+# 100 % throughout.
+x <- x |>
+  dplyr::mutate(variable = dplyr::case_when(
+    .data$variable != "per_species" ~ .data$variable,
+    is.na(.data$species_group)      ~ "Fl.-Ant. Bhd-Kl. (%)",
+    TRUE                            ~ "Fl.-Ant. Artgr. (%)"
+  ))
+
+# 2b. Row order, as in the base table: an annotation row sits directly under
+# the quantity it belongs to, and "Anz. Pkte." always comes last. Rows a
+# variant does not have (the area / per-ha rows exist only in the main-stand
+# variant) are simply skipped.
+.var_order <- c("V (m³)", "95%-VB (± %)", "V-Ant. Bhd-Kl. (%)",
+                "G (m²)", "N", "dg (cm)", "hg (m)",
+                "Fl. ideell (ha)", "Fl.-Ant. Artgr. (%)", "Fl.-Ant. Bhd-Kl. (%)",
+                "V (m³/ha)", "G (m²/ha)", "N (/ha)",
+                "Anz. Pkte.")
+#
+# Row groups are ordered explicitly rather than by the class factor alone: the
+# real classes come first in ascending order, then the trees without a class
+# ("k. A.", whose level is NA and which dplyr would otherwise sort last of
+# all), and the pooling group ("Summe" -> "Alle Klassen") closes the block.
+x <- x |>
+  dplyr::mutate(
+    variable = factor(.data$variable, levels = .var_order, ordered = TRUE),
+    .class_rank = dplyr::case_when(
+      as.character(.data[[class_col]]) == "Summe" ~ 3L,
+      is.na(.data[[class_col]])                   ~ 2L,
+      TRUE                                        ~ 1L
+    )
+  ) |>
+  dplyr::arrange(is.na(.data$species_group), .data$species_group,
+                 .data$.class_rank, .data[[class_col]], .data$variable) |>
+  dplyr::mutate(variable = as.character(.data$variable)) |>
+  dplyr::select(-".class_rank")
+
+# 3. dg and hg are blanked in exactly one place per species: where the "Alle
+# Klassen" row group meets the "Gesamt" column. Everywhere else they stay.
+# Within a single class the Gesamt column pools nothing but the dbh classes,
+# which is a meaningful basal-area mean tree - and precisely the value the base
+# table prints for that class. Only the trailing row group pools every class,
+# so that one cell is the counterpart of the base table's "Gesamt" column,
+# blanked there for the same reason: a single dg spanning thicket to old timber
+# describes no real stand. Cells are set to NA rather than rows dropped
+# (knitr.kable.NA = ""), so the per-class values are untouched.
+x$total[as.character(x[[class_col]]) == "Summe" &
+          x$variable %in% c("dg (cm)", "hg (m)")] <- NA
+
+# 4. Pre-format every numeric cell, German conventions: decimal comma and
+# thousands separated by a space (unambiguous to German and English readers
+# alike, unlike a thousands dot). V, G, N and the point counts are whole
+# numbers; everything else keeps one decimal.
+#
+# The former "Tsd." rescaling is gone. Dividing V, G and N by 1000 and printing
+# three decimals showed the same information - resolution down to the single
+# cubic metre - in a form nobody can read at a glance: ex3 rendered V as 0,000
+# / 0,041 / 0,110 and N as 78,214. Whole numbers with a thin thousands space
+# say the same thing plainly, and they degrade gracefully for small
+# enterprises, which the rescaling did not.
+fmt_de <- function(v, digits) {
+  formatC(v, format = "f", digits = digits, big.mark = " ", decimal.mark = ",")
+}
+int_rows   <- c("V (m³)", "G (m²)", "N", "Anz. Pkte.")
+is_int_row <- x$variable %in% int_rows
+for (cn in names(x)[vapply(x, is.numeric, logical(1))]) {
+  x[[cn]] <- dplyr::case_when(
+    is.na(x[[cn]]) ~ NA_character_,
+    is_int_row     ~ fmt_de(round(x[[cn]]), 0),
+    TRUE           ~ fmt_de(x[[cn]], 1)
+  )
+}
+
+# 5. Open top class: "(60,999]" -> ">60" (999 is the sentinel upper break from
+# pulled_methods.R). This affects both axes of this table - the dbh classes in
+# the column headers and the age/dq classes in the row-group headings - so it
+# is applied to the column names here and to the group labels below.
+open_class <- function(s) sub("^\\(([0-9]+),999\\]$", ">\\1", s)
+names(x) <- open_class(names(x))
+
+# Trees without an age form a class whose level is NA; it becomes the "k. A."
+# row group (see the loop). Recorded here, while the class column is still
+# around, because the notes on the title page only mention it when it is there.
+has_no_class_group <- any(is.na(x[[class_col]]))
+# Name the leftover row-label column after the class it groups (Altersklasse/
+# Dg-Klasse) rather than a generic "Kennzahl" - it's the only place left that
+# tells the reader what the sub-headings below it actually are.
+label_col <- if (params$type == "age") "Altersklasse" else "Dg-Klasse"
+
+# Species order: real species first (original order), the cross-species block
+# (NA species_group) forced last. Three different things used to be called
+# "Summe" in this table; they are now told apart by name, following the base
+# table: the cross-species page is "Alle Artgruppen", the total column is
+# "Gesamt" (see the rename below), and the trailing row group of each page -
+# the one pooling every class - is "Alle Klassen".
+sp_order_dat <- x |>
+  dplyr::distinct(species_group) |>
+  dplyr::arrange(is.na(species_group), species_group)
+sp_keys   <- sp_order_dat$species_group
+sp_labels <- format(sp_keys)
+sp_labels[is.na(sp_keys)] <- "Alle Artgruppen"
+
+# Escape the handful of LaTeX-special characters that could in principle show
+# up in a species label, before dropping it into raw LaTeX below.
+latex_escape <- function(s) gsub("([&_%$#{}])", "\\\\\\1", s)
+
+# Keep a class block together on one page. Same mechanism as the base table and
+# the increment tables: pack_rows starts every group with a line
+# "\addlinespace[0.3em]", and a longtable row ending in "\\" allows a page break
+# after it while "\\*" forbids one. So every breakable row terminator becomes
+# "\\*", except the one right before the next group boundary - breaks then
+# happen between blocks, never inside one. A block is a good page-and-a-bit
+# shorter than a page, so nothing gets stranded.
+#
+# This only works together with pack_rows(hline_before = TRUE): a rule below
+# the heading would be a break opportunity that no penalty can close, because
+# longtable offers a break at a rule deliberately and offers it before anything
+# we could append. See the pack_rows call.
+no_break_within_groups <- function(tex, n_col) {
+  lines <- strsplit(tex, "\n", fixed = TRUE)[[1]]
+  is_boundary <- trimws(lines) == "\\addlinespace[0.3em]"
+  n <- length(lines)
+  out <- character(0)
+  for (i in seq_len(n)) {
+    ln <- lines[i]
+    if (endsWith(ln, "\\\\") && !endsWith(ln, "\\\\*")) {
+      j <- i + 1L
+      while (j <= n && trimws(lines[j]) == "") j <- j + 1L
+      next_boundary <- j <= n && is_boundary[j]
+      next_end      <- j <= n && grepl("end{longtable}", lines[j], fixed = TRUE)
+      if (!next_boundary && !next_end) ln <- paste0(ln, "*")
+    }
+    out <- c(out, ln)
+  }
+  paste(out, collapse = "\n")
+}
+
+# Set the area / per-hectare rows off visually: a rule above the first of them
+# and one below the last, so everything resting on the ideal species areas is
+# bracketed off from the rest. Taken over from the base table, including the
+# reasoning for the rule type: deliberately \cmidrule and not \midrule, because
+# \midrule spans the full tabular width like the class separators, whereas
+# \cmidrule(lr){1-n} covers just the labels and the numbers and is trimmed at
+# both ends, so it reads as a subdivision inside a block rather than as another
+# block boundary. Only the main-stand variant carries these rows at all; here
+# they occur once per class block, so every occurrence gets its pair.
+bracket_block <- function(tex, first_row, last_row, n_col) {
+  lines <- strsplit(tex, "\n", fixed = TRUE)[[1]]
+  # Trimmed to the printed matter rather than to the columns: on the left by
+  # the cell padding plus the indent pack_rows puts in front of every row
+  # label, so the rule starts exactly under the first letter of the variable
+  # names; on the right by the cell padding alone, so it ends flush with the
+  # right edge of the numbers.
+  rule  <- sprintf(
+    "\\cmidrule(l{\\dimexpr\\tabcolsep+1em\\relax}r{\\tabcolsep}){1-%d}", n_col)
+  out   <- character(0)
+  for (ln in lines) {
+    if (grepl(first_row, ln, fixed = TRUE)) out <- c(out, rule)
+    out <- c(out, ln)
+    if (grepl(last_row, ln, fixed = TRUE))  out <- c(out, rule)
+  }
+  paste(out, collapse = "\n")
+}
+
+# 6. Fit the table to the text width, with the same self-measuring mechanism as
+# the base table. Neither the number of dbh classes nor the magnitude of the
+# numbers is fixed, so no constant can be right for every inventory; the levers
+# are the type size and the inter-column padding, and both are derived from the
+# content that is actually there.
+#
+# The width of a column is estimated from its widest entry, charging 0.5 em per
+# digit or letter and 0.3 em for spaces and punctuation. Padding is given up
+# before type size, because tighter columns are far less noticeable than
+# smaller print.
+#
+# Measured over the whole table at once, not per species: every page carries
+# the same columns, so the widest content anywhere decides, and one type size
+# holds for the entire document instead of jumping from page to page.
+#
+# This replaces a block that rewrote the numeric columns to siunitx "S"
+# columns. That block never did anything: it searched the tabular preamble for
+# the literal "{lrr...r}", but column_spec() had already turned the preamble
+# into "{>{\raggedright\arraybackslash}p{1.9cm}rr...r}", so the sub() silently
+# found nothing. The columns have always been plain right-aligned - which is
+# also all that "S" would have delivered, since \sisetup sets
+# parse-numbers=false. siunitx is therefore no longer loaded.
+page_width_cm <- 21.0   # a4paper (classoption in the YAML header)
+margin_cm     <- 0.7    # keep in sync with the geometry setting above
+text_width_pt <- (page_width_cm - 2 * margin_cm) / 2.54 * 72.27
+
+# Character widths come from the font, not from a rule of thumb. Computer
+# Modern is optically sized: at small type sizes every glyph is proportionally
+# wider, so the familiar "half an em per character" - about right at 10 pt - is
+# far too narrow down here, and the error grows with the length of the numbers.
+# Measured with pdflatex (\settowidth at each candidate size), a digit is
+#   5 pt: 0.680 em   6 pt: 0.611 em   7 pt: 0.569 em   8 pt: 0.531 em
+# which in points is what the table below holds. The remaining glyph classes
+# keep an almost constant ratio to the digit across these sizes, so they are
+# expressed as multiples of it. All of this is metric of the typeface - it
+# holds for every table this template ever renders and depends on no data.
+digit_pt <- c("5" = 0.680 * 5, "6" = 0.611 * 6,
+              "7" = 0.569 * 7, "8" = 0.531 * 8)
+
+char_units <- function(chs) {
+  u <- rep(1.00, length(chs))               # digits and lowercase letters
+  u[chs == " "]                          <- 0.70
+  u[chs %in% c(",", ".")]                <- 0.60
+  u[chs %in% c("(", ")", "[", "]", "-", "/")] <- 0.80
+  u[chs == "%"]                          <- 1.65
+  u[chs %in% LETTERS]                    <- 1.45
+  u
+}
+
+str_width_units <- function(s) {
+  s <- s[!is.na(s)]
+  if (length(s) == 0) return(0)
+  max(vapply(strsplit(s, "", fixed = TRUE),
+             function(chs) sum(char_units(chs)), numeric(1)))
+}
+
+# The row-label column carries the variable names, the class column is dropped
+# before rendering, and species_group never reaches the table.
+measured   <- x |> dplyr::select(-dplyr::all_of(c("species_group", class_col)))
+n_tbl_cols <- ncol(measured)
+col_units <- vapply(seq_along(measured), function(j) {
+  max(str_width_units(as.character(measured[[j]])),
+      str_width_units(names(measured)[j]))
+}, numeric(1))
+
+# A structure table is wide by nature - thirteen dbh classes plus a total
+# column - so it starts one step below the base table's ladder. Together with
+# the wider page margin this keeps a comfortable distance to the paper edge
+# instead of filling it out to the last point.
+font_sizes <- c(7, 6, 5)
+colseps    <- c(6, 4, 3, 2)
+
+# What is still not modelled: the width of the booktabs rules, and rounding in
+# the glyph factors. Both are small and neither grows with the data, so a
+# narrow margin suffices - unlike before, when the whole character model was
+# wrong and the shortfall grew with the size of the numbers.
+width_budget_pt <- 0.96 * text_width_pt
+
+# Fallback if even the smallest combination is too wide: use it anyway, so the
+# table comes out as narrow as this mechanism can make it.
+fit   <- list(font_size = min(font_sizes), colsep = min(colseps))
+found <- FALSE
+for (fs in font_sizes) {
+  # pack_rows indents the label of every data row by 1 em, which is exactly the
+  # type size in points - a known quantity, so it is charged rather than
+  # absorbed into the margin.
+  content_pt <- sum(col_units) * digit_pt[[as.character(fs)]] + fs
+  for (cs in colseps) {
+    if (content_pt + 2 * cs * n_tbl_cols <= width_budget_pt) {
+      fit   <- list(font_size = fs, colsep = cs)
+      found <- TRUE
+      break
+    }
+  }
+  if (found) break
+}
+
+# 7. Title page. Pandoc's own \maketitle is suppressed (header-includes), so
+# title, subtitle and meta line are built by hand here, centred on a page of
+# their own, and the data start fresh on page 2 - one species per page after
+# that. The page is emitted from this chunk rather than from an earlier one
+# because the explanatory notes below need the labels the steps above produce.
+subtitle_txt <- paste0(
+  if (params$type == "dq") "nach Mitteldurchmesser-Klassen" else "nach Altersklassen",
+  if (identical(params$cohort, "mainstand")) ", Hauptbestand"
+  else if (identical(params$cohort, "alllayers")) ", Alle Schichten"
+  else paste0(", Benutzerdefinierte Auswahl: ", latex_escape(params$cohort))
+)
+
+cat("\\begin{center}\n\\vspace*{\\fill}\n")
+cat("\\adjustbox{max width=0.95\\linewidth}{\\Huge\\textbf{Strukturtabelle ",
+    latex_escape(params$tab_title), "}}\\\\[1em]\n", sep = "")
+cat("{\\Large ", subtitle_txt, "}\\\\[2em]\n", sep = "")
+
+if (!is.null(params$meta)) {
+  m <- params$meta
+  # Thousands separated by a space, not a dot, as in the base table: "15 575"
+  # reads the same to German and English readers, whereas "15.575" looks like a
+  # decimal number.
+  fmt_ha <- function(v) format(round(v), big.mark = " ", decimal.mark = ",",
+                                scientific = FALSE)
+  parts <- character(0)
+  if (!is.null(m$year))    parts <- c(parts, paste0("\\textbf{Inventurjahr:} ",      as.integer(m$year)))
+  if (!is.null(m$area_ha)) parts <- c(parts, paste0("\\textbf{Gesamtfl\\\"ache:} ", fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) parts <- c(parts, paste0("\\textbf{Inventurpunkte:} ",   as.integer(m$n_plots)))
+  if (length(parts) > 0)
+    cat("{\\large ", paste(parts, collapse = " \\qquad "), "}\n", sep = "")
+}
+
+cat("\\vspace*{\\fill}\n\\end{center}\n")
+
+# 7a. Explanatory notes, taken over from the base table so both table families
+# explain the same quantity in the same words. They sit on the title page here
+# rather than under the table, because the table runs over many pages and there
+# is no single "under it" any more. The cohort caveat is the first note, which
+# is what makes the separate disclaimer footnote (and the asterisk in the
+# subtitle it referred to) unnecessary.
+#
+# Which notes appear depends on the rows this variant actually carries, so
+# nothing is explained that is not shown.
+has <- function(v) v %in% unique(x$variable)
+# "%" starts a comment in LaTeX and this block is emitted as raw LaTeX.
+esc <- function(s) gsub("%", "\\\\%", s)
+
+notes <- character(0)
+if (identical(params$cohort, "mainstand")) {
+  notes <- c(notes, paste0(
+    "Diese Tabelle umfasst nur den Hauptbestand, nicht das gesamte erfasste ",
+    "Inventurkollektiv. Nur f\\\"ur den Hauptbestand lassen sich ideelle ",
+    "Baumarten-Anteilsfl\\\"achen und darauf bezogene Hektarwerte berechnen. Die ",
+    "Berechnung solcher ideellen Anteilsfl\\\"achen ist aus methodischer Sicht ",
+    "allerdings problematisch; darauf bezogene Werte sind stets mit Vorsicht zu ",
+    "interpretieren."))
+} else if (identical(params$cohort, "alllayers")) {
+  notes <- c(notes, paste0(
+    "Diese Tabelle beinhaltet die Werte aller Bestandesschichten. Sie umfasst ",
+    "daher das gesamte Holzvolumen des Betriebes, erlaubt aber nicht die ",
+    "Berechnung von ideellen Fl\\\"achenanteilen und daher auch nicht die Angabe ",
+    "von darauf bezogenen Per-Hektar-Werten."))
+}
+notes <- c(notes, paste0(
+  "Alle Volumenangaben verstehen sich als Erntefestmeter ohne Rinde (Efm o.R.)."))
+notes <- c(notes, paste0(
+  "Aufbau: je Artgruppe eine Seite, darauf je Klasse ein Block; die letzte ",
+  "Seite \"Alle Artgruppen\" fasst \\\"uber alle Artgruppen zusammen. Der ",
+  "abschlie\\ss{}ende Block \"Alle Klassen\" b\\\"undelt alle Klassen der jeweiligen ",
+  "Seite, die Spalte \"Gesamt\" alle Bhd-Klassen der jeweiligen Zeile."))
+notes <- c(notes, paste0(
+  "Bhd-Klassen ohne B\\\"aume werden als leere Spalte gezeigt, damit die ",
+  "Klassenachse vollst\\\"andig und zwischen Auswertungen vergleichbar bleibt."))
+if (has_no_class_group)
+  notes <- c(notes, paste0(
+    "k. A.: keine Altersangabe. Dieser Block fasst alle B\\\"aume zusammen, f\\\"ur ",
+    "die kein Alter vorliegt; er bildet eine eigene Klasse und geht damit in den ",
+    "Block \"Alle Klassen\" ein."))
+if (has("95%-VB (± %)"))
+  notes <- c(notes, paste0(
+    "95%-VB (± %): halbe Breite des zweiseitigen 95%-Vertrauensbereichs des ",
+    "Vorrats V, in Prozent von V. Der zugrundeliegende Standardfehler ist ",
+    "fl\\\"achengewichtet gesch\\\"atzt. Der Wert wird nur in der Spalte \"Gesamt\" ",
+    "ausgewiesen, also je Klasse: je einzelner Bhd-Klasse st\\\"utzte er sich auf ",
+    "so wenige Inventurpunkte, dass er nichts aussagt."))
+if (has("dg (cm)") || has("hg (m)"))
+  notes <- c(notes, paste0(
+    "dg, hg: Durchmesser bzw. H\\\"ohe des Grundfl\\\"achenmittelstamms. Im ",
+    "Schnittpunkt des Blocks \"Alle Klassen\" mit der Spalte \"Gesamt\" werden sie ",
+    "nicht ausgewiesen: \\\"uber alle Klassen hinweg ist die Angabe eines ",
+    "Mittelstamms nicht sinnvoll."))
+if (has("V-Ant. Bhd-Kl. (%)"))
+  notes <- c(notes, paste0(
+    "V-Ant. Bhd-Kl. (%): Anteil der jeweiligen Bhd-Klasse am Vorrat der Zeile. ",
+    "Die Werte einer Zeile summieren sich \\\"uber alle Bhd-Klassen zu 100 %."))
+if (has("Fl. ideell (ha)"))
+  notes <- c(notes, paste0(
+    "Fl. ideell (ha): ideelle Anteilsfl\\\"ache der Artgruppe; die hektarbezogenen ",
+    "Werte beziehen sich auf diese Fl\\\"ache."))
+if (has("Fl.-Ant. Artgr. (%)"))
+  notes <- c(notes, paste0(
+    "Fl.-Ant. Artgr. (%): Anteil der Artgruppe an der ideellen Fl\\\"ache der ",
+    "jeweiligen Klasse. Die Werte einer Klasse summieren sich \\\"uber alle ",
+    "Artgruppen zu 100 %."))
+if (has("Fl.-Ant. Bhd-Kl. (%)"))
+  notes <- c(notes, paste0(
+    "Fl.-Ant. Bhd-Kl. (%): Anteil der jeweiligen Bhd-Klasse an der ideellen ",
+    "Fl\\\"ache der Klasse. Die Werte einer Zeile summieren sich \\\"uber alle ",
+    "Bhd-Klassen zu 100 %."))
+notes <- c(notes, paste0(
+  "Anz. Pkte.: Anzahl der Inventurpunkte, auf denen die jeweilige Gruppe ",
+  "vertreten ist. Die Summe \\\"uber die Tabelle kann von der oben angegebenen ",
+  "Gesamtzahl der Inventurpunkte abweichen, weil nicht auf jedem Inventurpunkt ",
+  "B\\\"aume vorkommen, die den Auswahlkriterien dieser Tabelle entsprechen."))
+
+# Emitted as raw LaTeX: use real environments throughout. A bare "{ ... }"
+# grouping is NOT recognised as LaTeX by pandoc and would leak into the text.
+#
+# The notes sit in a centred minipage rather than across the full text width.
+# The page margin is set narrow for the sake of the wide table, which leaves
+# running text uncomfortably close to the paper edge; the minipage gives the
+# notes their own, roomier measure without touching the geometry the table
+# depends on.
+cat("\\vfill\n\\begin{center}\\begin{minipage}{0.88\\linewidth}\n")
+cat("\\begin{footnotesize}\n")
+cat("\\textbf{Erl\\\"auterungen}\n")
+cat("\\begin{itemize}\\setlength{\\itemsep}{0pt}\\setlength{\\parskip}{0pt}",
+    "\\setlength{\\topsep}{2pt}\n", sep = "")
+for (nt in notes) cat("\\item ", esc(nt), "\n", sep = "")
+cat("\\end{itemize}\n\\end{footnotesize}\n")
+cat("\\end{minipage}\\end{center}\n")
+
+cat("\n\\newpage\n")
+
+# Emitted as a plain command (no brace group), which pandoc passes through as
+# raw LaTeX; the tables below are the only tabular material in the document.
+cat("\\setlength{\\tabcolsep}{", fit$colsep, "pt}\n", sep = "")
+
+
+for (i in seq_along(sp_keys)) {
+  key <- sp_keys[i]
+  sp_dat <- if (is.na(key)) {
+    x[is.na(x$species_group), ]
+  } else {
+    x[!is.na(x$species_group) & x$species_group == key, ]
+  }
+  sp_dat <- sp_dat |> dplyr::select(-species_group)
+
+  # The class columns are counted by exclusion, never by the "(a,b]" spelling
+  # of their names: the open top class is relabelled ">60" above, and an age
+  # level of NA arrives as a column named "NA", so a spelling test would leave
+  # either of them outside the spanner.
+  has_total    <- "total" %in% names(sp_dat)
+  n_class_cols <- ncol(sp_dat) - 2L - as.integer(has_total)
+
+  # Age/dq class sub-heading (bold), nested within this species' own table,
+  # with a rule along the row's own lower border separating it from the
+  # class' data rows below (hline_after = TRUE) - simpler and more robust
+  # than a decorative fill-line.
+  # Trees whose age is unknown form a class whose level is NA. It is labelled
+  # "k. A." - the same wording the base table uses for its no-age column, so
+  # both table families read alike. Note also that pack_rows() cannot take an
+  # NA group name at all ("NAs are not allowed in subscripted assignments"), so
+  # without this the whole age-class structure table failed to render for any
+  # inventory with incomplete ages.
+  class_chr    <- as.character(sp_dat[[class_col]])
+  is_summe_row <- !is.na(class_chr) & class_chr == "Summe"
+  # The open top class needs the same relabelling here as in the column heads:
+  # this is the second place it appears, as the heading of a row group.
+  class_chr    <- open_class(class_chr)
+  class_chr[is.na(class_chr)] <- "k. A."
+  class_chr[is_summe_row]     <- "Alle Klassen"
+
+  class_rle   <- rle(class_chr)
+  class_index <- class_rle$lengths
+  names(class_index) <- class_rle$values
+
+  sp_dat <- sp_dat |>
+    dplyr::rename(!!label_col := variable) |>
+    dplyr::rename("Gesamt" = total) |>
+    dplyr::select(-dplyr::all_of(class_col))
+
+  horizontal_index <- c(1, n_class_cols, if (has_total) 1 else 0)
+  names(horizontal_index) <- c(" ", "Bhd-Klassen (cm)", if (has_total) " " else NULL)
+
+  tbl <- knitr::kable(
+    sp_dat,
+    booktabs    = TRUE,
+    longtable   = TRUE,
+    format.args = list(scientific = FALSE),
+    align       = c("l", rep("r", ncol(sp_dat) - 1)),
+    linesep     = ""
+  ) |>
+    kableExtra::add_header_above(horizontal_index) |>
+    kableExtra::pack_rows(
+      index        = class_index,
+      # The rule sits above the block heading, not below it. Below the heading
+      # it was a page-break opportunity that could not be closed: longtable
+      # offers a break at a rule on purpose, and the offer comes before any
+      # penalty that could follow it, so the heading kept being stranded alone
+      # at the foot of a page. Above the heading the same rule falls on a block
+      # boundary, which is exactly where a break is welcome anyway - and it
+      # reads as a block separator, which is what it is.
+      hline_after  = FALSE,
+      hline_before = TRUE,
+      bold         = TRUE,
+      italic       = FALSE,
+      indent       = TRUE
+    ) |>
+    kableExtra::kable_styling(
+      font_size     = fit$font_size,
+      latex_options = "repeat_header"
+    )
+  # The row-label column takes its natural width; no column_spec(width =) is
+  # applied. A fixed width is a guess that has to be re-guessed whenever a
+  # label changes - "V-Ant. Bhd-Kl. (%)" wrapped onto two lines in the previous
+  # 1.9 cm - whereas the label set is decided by this template alone, so LaTeX
+  # can size the column exactly and never wrap.
+
+  # Order matters: forbid the breaks first, then insert the rules. The break
+  # logic reads the row terminators, and a \cmidrule line has none - inserting
+  # the rules first would put a non-row line between a row and the group
+  # boundary that follows it, and the row would wrongly be marked unbreakable.
+  tex <- no_break_within_groups(as.character(tbl), ncol(sp_dat))
+  if ("Fl. ideell (ha)" %in% sp_dat[[label_col]] &&
+      "N (/ha)" %in% sp_dat[[label_col]])
+    tex <- bracket_block(tex, "Fl. ideell (ha) &", "N (/ha) &", ncol(sp_dat))
+
+  # The species heading goes inside the table, as a row of its own above the
+  # top rule, instead of being written above it as ordinary text. The table is
+  # centred on the page, so its left edge is nowhere near the left margin, and
+  # a heading set as text started well to the left of it. As a table row it
+  # begins exactly where the top rule begins - "@{}" drops the cell padding
+  # that would otherwise push it a little to the right. It sits before
+  # \endfirsthead, so it appears once and is not repeated on continuation
+  # pages.
+  head_row <- sprintf("\\multicolumn{%d}{@{}l}{\\LARGE\\textbf{%s}}\\\\[0.4em]",
+                      ncol(sp_dat), latex_escape(sp_labels[i]))
+  tex <- sub("\\toprule", paste0(head_row, "\n\\toprule"), tex, fixed = TRUE)
+
+  cat("\n\\bigskip\n\n")
+  cat(tex, sep = "\n")
+  if (i < length(sp_keys)) cat("\n\\newpage\n")
+}
+
+options(oo)
+```

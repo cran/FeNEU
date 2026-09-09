@@ -1,0 +1,341 @@
+---
+params:
+  x:
+  tab_title:
+  type:
+  meta: !r NULL
+title: "\\fontsize{12}{14}\\selectfont Struktur der Verjüngung `r params$tab_title`"
+classoption:
+  - a4paper
+geometry:
+  - landscape
+  - "left=0.5cm,right=0.5cm,top=1.cm, bottom=1.2cm"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r meta-block, echo=FALSE, results="asis"}
+if (!is.null(params$meta)) {
+  m <- params$meta
+  fmt_ha <- function(x) format(round(x), big.mark = ".", decimal.mark = ",",
+                                scientific = FALSE)
+  parts <- character(0)
+  if (!is.null(m$year))    parts <- c(parts, paste0("\\textbf{Inventurjahr:} ",      as.integer(m$year)))
+  if (!is.null(m$area_ha)) parts <- c(parts, paste0("\\textbf{Gesamtfl\\\"ache:} ", fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) parts <- c(parts, paste0("\\textbf{Inventurpunkte:} ",   as.integer(m$n_plots)))
+  if (length(parts) > 0)
+    cat("\\begin{center}\\small ", paste(parts, collapse = "\\qquad "), "\\end{center}\\vspace{-0.5em}\n", sep = "")
+}
+```
+
+```{r, echo = FALSE, message = FALSE}
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+
+x <- params$x
+
+# ------------ Basic preparation ------------------------
+
+# ensure mixture_class exists and order "total" on top if present
+if ("mixture_class" %in% names(x)) {
+  mix_levels <- unique(x$mixture_class)
+  if ("total" %in% mix_levels) {
+    mix_levels <- c("total", setdiff(mix_levels, "total"))
+  }
+  x$mixture_class <- factor(x$mixture_class, levels = mix_levels)
+}
+
+# choose ID column for rows: species_group preferred, otherwise species_name
+id_order_cols <- intersect(c("species_group", "species_name"), names(x))
+
+if (length(id_order_cols) == 0) {
+  x <- x |>
+    dplyr::arrange(.data$mixture_class)
+} else {
+  x <- x |>
+    dplyr::arrange(.data$mixture_class, !!!rlang::syms(id_order_cols))
+}
+
+# Shorten long species names for display in the narrow Baumart column
+shorten_species_name <- function(nm) {
+  nm <- gsub("Sonst. Laubholz", "Son. Laub.",  nm, fixed = TRUE)
+  nm <- gsub("Edellaubholz",    "Edel Laub.",  nm, fixed = TRUE)
+  nm
+}
+
+# Convert species_group to German name for display (must happen after arrange)
+if ("species_group" %in% names(x)) {
+  x$species_group <- shorten_species_name(format(x$species_group, spec_lang = "ger"))
+}
+
+# vertical grouping index (one band per mixture_class)
+vertical_index_dat <- x |>
+  dplyr::group_by(.data$mixture_class) |>
+  dplyr::summarise(n = dplyr::n(), .groups = "drop")
+
+clean_mixture_label <- function(lbl) {
+  if (identical(lbl, "total")) return("Gesamt")
+  lbl <- sub("^mix_",    "", lbl)
+  lbl <- sub("^single_", "", lbl)
+  lbl <- sub("^other_",  "", lbl)
+  shorten_species_name(lbl)
+}
+vertical_index <- vertical_index_dat$n
+names(vertical_index) <- vapply(
+  as.character(vertical_index_dat$mixture_class),
+  clean_mixture_label,
+  character(1)
+)
+
+# total VVJ area (for header subtitle)
+total_area_ha <- NA_real_
+if ("area_ha_total" %in% names(x)) {
+  total_area_ha <- sum(x$area_ha_total[x$mixture_class == "total"], na.rm = TRUE)
+}
+
+# ------------ Identify height class columns ------------------------
+
+all_names <- names(x)
+
+metric_prefixes <- c("n_measrured", "n_calc_ha", "area_ha", "percHoe")
+
+# columns that belong to height classes: prefix_... but not *_total
+is_hclass_col <- vapply(
+  all_names,
+  FUN.VALUE = logical(1),
+  FUN = function(nm) {
+    any(vapply(
+      metric_prefixes,
+      FUN.VALUE = logical(1),
+      FUN = function(mp) {
+        startsWith(nm, paste0(mp, "_")) &&
+          !identical(nm, paste0(mp, "_total"))
+      }
+    ))
+  }
+)
+
+hclass_cols <- all_names[is_hclass_col]
+
+# ------------ Detect Probkreise columns (n_inv_points_*) ------------------------
+
+probkreise_cols <- grep("^n_inv_points_", all_names, value = TRUE)
+n_probkreise    <- length(probkreise_cols)
+
+# Strip the known metric prefix to get the height class label
+# e.g. "n_measrured_0.2-1.3" -> "0.2-1.3", "area_ha_1.3-5.0" -> "1.3-5.0"
+get_hclass <- function(nm) {
+  for (mp in metric_prefixes) {
+    prefix <- paste0(mp, "_")
+    if (startsWith(nm, prefix)) return(substr(nm, nchar(prefix) + 1L, nchar(nm)))
+  }
+  nm
+}
+
+hclasses <- unique(vapply(hclass_cols, get_hclass, FUN.VALUE = character(1)))
+
+# keep order as in the data (cut() order)
+hclasses_ord <- hclasses
+
+# for each height class, collect all metric columns that end with _<hclass>
+class_cols <- lapply(hclasses_ord, function(hc) {
+  suffix <- paste0("_", hc)
+  all_names[endsWith(all_names, suffix)]
+})
+names(class_cols) <- hclasses_ord
+
+# ------------ Reorder columns ------------------------
+
+# ID columns: show species_group or species_name, NOT mixture_class
+id_cols <- id_order_cols
+
+hclass_all_cols <- unlist(class_cols, use.names = FALSE)
+
+# other columns: everything except mixture_class, id_cols, height-class metrics, and probkreise
+other_cols <- setdiff(all_names, c("mixture_class", id_cols, hclass_all_cols, probkreise_cols))
+
+ordered_cols <- c(
+  id_cols,
+  hclass_all_cols,
+  other_cols,
+  probkreise_cols
+)
+
+# Capture mixture class per row before dropping the column
+mc_per_row <- as.character(x$mixture_class)
+
+x <- x[, ordered_cols, drop = FALSE]
+
+# ------------ Shorten metric names (drop hclass from label) ------------------------
+
+short_metric_name <- function(nm) {
+  if (startsWith(nm, "n_measrured_")) return("Anz")
+  if (startsWith(nm, "n_calc_ha_"))   return("N/ha")
+  if (startsWith(nm, "area_ha_"))     return("Fl(ha)")
+  if (startsWith(nm, "percHoe_"))     return("%H\u00f6")
+  if (startsWith(nm, "n_inv_points_")) return(sub("^n_inv_points_", "", nm))
+  nm
+}
+
+new_names <- vapply(names(x), short_metric_name, FUN.VALUE = character(1))
+
+# nice labels for ID columns
+if ("species_group" %in% names(x)) {
+  new_names[new_names == "species_group"] <- "Baumart"
+}
+if ("species_name" %in% names(x)) {
+  new_names[new_names == "species_name"] <- "Baumart"
+}
+
+# totals / sum columns (they keep their own meaning)
+new_names[new_names == "n_measrured_total"] <- "Anz"
+new_names[new_names == "n_calc_ha_total"]   <- "N/ha"
+new_names[new_names == "area_ha_total"]     <- "Fl(ha)"
+new_names[new_names == "percHoe_total"]     <- "%H\u00f6"
+new_names[new_names == "stammzahl_je_ha"]   <- "St/ha"
+new_names[new_names == "Dominanz"]          <- "Dom.%"
+
+names(x) <- new_names
+
+# --- Filter out rows where all numeric columns are NA (species with no data) ---
+x_num_mask <- vapply(x, is.numeric, logical(1))
+if (any(x_num_mask)) {
+  is_all_na  <- apply(x[, x_num_mask, drop = FALSE], 1, function(r) all(is.na(r)))
+  x          <- x[!is_all_na, , drop = FALSE]
+  mc_per_row <- mc_per_row[!is_all_na]
+}
+
+# --- Per-column digits: 0 for integer counts, 1 for proportions/areas ---
+kable_digits <- ifelse(names(x) %in% c("%H\u00f6", "Dom.%"), 1L, 0L)
+
+# ------------ Header bands (BaySF L43 style: height class names in outer band) -------
+
+len_per_hclass <- vapply(class_cols, length, integer(1))
+
+n_id    <- length(id_cols)
+n_hcls  <- length(hclass_all_cols)
+n_other <- length(other_cols)
+
+# Transform internal labels (e.g. "0.2-1.3") to German display format "0,2 - 1,3 m"
+transform_hclass_label <- function(hc) {
+  parts <- strsplit(hc, "-", fixed = TRUE)[[1]]
+  if (length(parts) == 2) {
+    paste0(
+      gsub(".", ",", parts[1], fixed = TRUE), " - ",
+      gsub(".", ",", parts[2], fixed = TRUE), " m"
+    )
+  } else {
+    hc
+  }
+}
+hclass_display_labels <- vapply(hclasses_ord, transform_hclass_label, FUN.VALUE = character(1))
+
+# Single outer header band with height class names directly (like BaySF L43)
+if (n_probkreise > 0) {
+  header_outer <- c(n_id, len_per_hclass, n_other, n_probkreise)
+  names(header_outer) <- c(
+    " ",
+    hclass_display_labels,
+    "Summe und Kennzahlen",
+    "Zahl der Probekreise nach Pflanzenzahl je Probekreis"
+  )
+} else {
+  header_outer <- c(n_id, len_per_hclass, n_other)
+  names(header_outer) <- c(
+    " ",
+    hclass_display_labels,
+    "Summe und Kennzahlen"
+  )
+}
+
+header_top <- ncol(x)
+
+if (is.finite(total_area_ha)) {
+  top_label <- sprintf(
+    "VVJ Fl\u00e4che gesamt = %s ha",
+    format(total_area_ha, big.mark = ".", decimal.mark = ",")
+  )
+} else {
+  top_label <- "VVJ Struktur"
+}
+
+names(header_top) <- c(top_label)
+
+# Recompute vertical_index from filtered mc_per_row (row counts may have changed)
+mc_order_all  <- as.character(vertical_index_dat$mixture_class)
+mc_counts_flt <- vapply(mc_order_all, function(mc) sum(mc_per_row == mc), integer(1))
+mc_nonempty   <- mc_counts_flt > 0L
+vertical_index <- mc_counts_flt[mc_nonempty]
+names(vertical_index) <- vapply(
+  mc_order_all[mc_nonempty],
+  clean_mixture_label,
+  character(1)
+)
+
+# ------------ Render table ------------------------
+
+x_visible  <- x
+n_vis_cols <- ncol(x_visible)
+
+tbl <- knitr::kable(
+  x_visible,
+  booktabs    = TRUE,
+  longtable   = TRUE,
+  digits      = kable_digits,
+  format.args = list(scientific = FALSE, decimal.mark = ",", big.mark = "."),
+  align       = c("l", rep("r", n_vis_cols - 1))
+) |>
+  kableExtra::add_header_above(header_outer) |>
+  kableExtra::add_header_above(header_top) |>
+  kableExtra::pack_rows(
+    index        = vertical_index,
+    hline_before = TRUE,
+    hline_after  = FALSE,
+    indent       = FALSE
+  ) |>
+  kableExtra::kable_styling(
+    font_size     = 5,
+    latex_options = "repeat_header"
+  ) |>
+  # Species name column (left-aligned)
+  kableExtra::column_spec(1:n_id, width = "1.2cm")
+
+# Height class metric columns: per-metric widths
+# Each height class repeats: Anz, N/ha, Fl(ha), %Hö
+hcls_metric_widths <- c("0.7cm", "1.0cm", "0.5cm", "0.45cm")
+n_classes <- length(class_cols)
+for (k in seq_len(n_classes)) {
+  n_metrics <- length(class_cols[[k]])
+  mw <- rep_len(hcls_metric_widths, n_metrics)
+  offset <- n_id + sum(vapply(class_cols[seq_len(k - 1)], length, integer(1)))
+  for (m in seq_len(n_metrics)) {
+    tbl <- tbl |> kableExtra::column_spec(offset + m, width = mw[m])
+  }
+}
+
+# Summary columns: per-column widths
+# Order: Anz, N/ha, Fl(ha), %Hö, St/ha, Dom.%
+summ_widths <- c("0.65cm", "1.1cm", "0.7cm", "0.4cm", "0.4cm", "0.4cm")
+summ_widths <- rep_len(summ_widths, n_other)
+for (j in seq_len(n_other)) {
+  tbl <- tbl |>
+    kableExtra::column_spec(n_id + n_hcls + j, width = summ_widths[j])
+}
+
+if (n_probkreise > 0) {
+  pk_start <- n_id + n_hcls + n_other + 1
+  pk_labels <- names(x_visible)[pk_start:(pk_start + n_probkreise - 1)]
+  for (j in seq_along(pk_labels)) {
+    w <- if (nchar(pk_labels[j]) <= 1) "0.38cm" else if (nchar(pk_labels[j]) <= 3) "0.48cm" else "0.58cm"
+    tbl <- tbl |> kableExtra::column_spec(pk_start + j - 1, width = w)
+  }
+}
+
+tbl
+
+options(oo)
+
+```
+
+

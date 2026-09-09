@@ -1,0 +1,100 @@
+---
+params:
+  x:          NULL
+  tab_title:  ""
+  meta:       !r NULL
+  collective: !r NULL
+title: "\\fontsize{14}{16}\\selectfont Zuwachs auf Betriebsebene -- Schätzung nach BWI 3"
+date: ""
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=1.2cm,right=1.2cm,top=1cm,bottom=1.2cm"
+fontsize: 11pt
+header-includes:
+  # Suppress page numbers. The output is a single page by design (one
+  # overview table + meta block + footnote). \maketitle applies
+  # \thispagestyle{plain} which prints a centred "1" at the bottom --
+  # override both `plain` and the global pagestyle to render an empty
+  # footer instead.
+  - \usepackage{fancyhdr}
+  - \pagestyle{empty}
+  - \fancypagestyle{plain}{\fancyhf{}\renewcommand{\headrulewidth}{0pt}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+latex_escape <- function(x) {
+  if (length(x) == 0L) return(x)
+  x <- as.character(x)
+  gsub("([&%$#_])", "\\\\\\1", x)
+}
+```
+
+```{r header-block, results = "asis"}
+m  <- params$meta
+co <- params$collective
+
+if (!is.null(params$tab_title) && nzchar(params$tab_title)) {
+  cat("\\vspace{-1.2em}\\begin{center}\n",
+      "{\\large\\textbf{", latex_escape(params$tab_title), "}}\n",
+      "\\end{center}\\vspace{-0.6em}\n", sep = "")
+}
+if (!is.null(co$label)) {
+  cat("\\begin{center}\\small ", latex_escape(co$label),
+      "\\end{center}\\vspace{-0.6em}\n", sep = "")
+}
+if (!is.null(m)) {
+  fmt_ha <- function(x) format(round(x), big.mark = ".", decimal.mark = ",",
+                               scientific = FALSE)
+  parts <- character(0)
+  if (!is.null(m$year))    parts <- c(parts, paste0("\\textbf{Inventurjahr:} ",
+                                                    as.integer(m$year)))
+  if (!is.null(m$area_ha)) parts <- c(parts, paste0("\\textbf{Gesamtfl\\\"ache:} ",
+                                                    fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) parts <- c(parts, paste0("\\textbf{Inventurpunkte:} ",
+                                                    as.integer(m$n_plots)))
+  if (length(parts) > 0)
+    cat("\\begin{center}\\small ", paste(parts, collapse = "\\qquad "),
+        "\\end{center}\\vspace{-0.3em}\n", sep = "")
+}
+```
+
+```{r build-table}
+oo <- options(fe_spec_lang = "ger")
+x  <- params$x
+
+# zv (m³/J) with one decimal; zv (m³/ha/J) always with two decimals.
+fmt_num <- function(v, digits = 1) formatC(round(v, digits), format = "f",
+                                           digits = digits, big.mark = ".",
+                                           decimal.mark = ",")
+
+labels <- format(x$species_group)
+labels[x$is_total_row] <- "Summe"
+
+disp <- tibble::tibble(
+  Baumart        = labels,
+  `zv (m³/J)`    = fmt_num(x$zv_m3_yr, 1),
+  `zv (m³/ha/J)` = fmt_num(x$zv_m3_ha_yr, 2)
+)
+
+knitr::kable(disp, booktabs = TRUE, longtable = TRUE,
+             align = c("l", "r", "r")) |>
+  kableExtra::row_spec(which(x$is_total_row), bold = TRUE) |>
+  kableExtra::kable_styling(latex_options = c("hold_position"),
+                            full_width = FALSE)
+
+options(oo)
+```
+
+```{r footnote, results = "asis"}
+cat("\\begin{flushleft}\\vspace{0.6em}\\small\\itshape\n")
+cat("Alle Volumenangaben verstehen sich als Erntefestmeter ohne Rinde ",
+    "(Efm o.R.).\n", sep = "")
+cat("\\par\\vspace{0.3em}\n")
+cat("Zuwachs gesch\\\"atzt mit den Zuwachsfunktionen der 3. Bundeswaldinventur ",
+    "(BWI 3) aus einer einzigen Inventur; es wird kein Konfidenzintervall ",
+    "ausgewiesen.\n", sep = "")
+cat("\\end{flushleft}\n")
+```

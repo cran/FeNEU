@@ -1,0 +1,343 @@
+---
+params:
+  x:          NULL
+  tab_title:  ""
+  type:       "age"
+  meta:       !r NULL
+  collective: !r NULL
+  ytables_used: !r NULL
+title: '`r { .b <- if (identical(params$type, "dq")) "Zuwachs nach Mitteldurchmesserklassen" else "Zuwachs nach Altersklassen"; .s <- if (!is.null(params$meta$inv_year_prev)) " -- Wiederholungsinventur" else if (identical(params$meta$source, "gnfi3")) " -- Sch\u00e4tzung nach BWI 3" else if (identical(params$meta$source, "ytable")) " -- Ertragstafelsch\u00e4tzung" else ""; paste0("\\fontsize{14}{16}\\selectfont ", .b, .s) }`'
+date: ""
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=0.7cm,right=0.7cm,top=1cm,bottom=1.2cm"
+fontsize: 10pt
+header-includes:
+  # The table LaTeX is emitted via cat() from an asis chunk (to post-process
+  # the page-break behaviour), so knitr does not auto-load the kableExtra table
+  # packages -- declare them here.
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+# Escape the LaTeX specials that may occur in user-supplied strings
+# (Forstbetrieb name, custom collective definition).
+latex_escape <- function(x) {
+  if (length(x) == 0L) return(x)
+  x <- as.character(x)
+  gsub("([&%$#_])", "\\\\\\1", x)
+}
+
+# Prevent page breaks WITHIN a species block of a kableExtra longtable. Each
+# pack_rows group starts with a line "\addlinespace[0.3em]". A longtable row
+# ending in "\\" allows a break after it, "\\*" forbids it. We turn every
+# breakable terminator into "\\*", except the row right before the next group
+# boundary (so breaks still happen between species blocks). Blocks are small
+# (a handful of rows), so they never exceed a page.
+no_break_within_groups <- function(tex) {
+  lines <- strsplit(tex, "\n", fixed = TRUE)[[1]]
+  is_boundary <- trimws(lines) == "\\addlinespace[0.3em]"
+  n <- length(lines)
+  for (i in seq_len(n)) {
+    ln <- lines[i]
+    if (endsWith(ln, "\\\\") && !endsWith(ln, "\\\\*")) {
+      j <- i + 1L
+      while (j <= n && trimws(lines[j]) == "") j <- j + 1L
+      next_boundary <- j <= n && is_boundary[j]
+      next_end      <- j <= n && grepl("end{longtable}", lines[j], fixed = TRUE)
+      if (!next_boundary && !next_end) lines[i] <- paste0(ln, "*")
+    }
+  }
+  paste(lines, collapse = "\n")
+}
+```
+
+```{r header-block, results = "asis"}
+m  <- params$meta
+co <- params$collective
+
+# Forstbetrieb name (= tab_title) prominent, centred right below the title --
+# same header style as the "Zuwachs auf Betriebsebene" overview PDFs.
+if (!is.null(params$tab_title) && nzchar(params$tab_title)) {
+  cat("\\vspace{-3em}\\begin{center}\n",
+      "{\\large\\textbf{", latex_escape(params$tab_title), "}}\n",
+      "\\end{center}\n", sep = "")
+}
+
+# Collective label, centred just below the name -- same as the gnfi3 and
+# yield-table overview PDFs: only the label ("Hauptbestand" / "Alle Schichten"
+# / custom), no "Kollektiv:" prefix.
+if (!is.null(co$label)) {
+  cat("\\begin{center}\\small ", latex_escape(co$label),
+      "\\end{center}\\vspace{-0.3em}\n", sep = "")
+}
+
+# Meta block, flushleft -- the same block as the "Zuwachs auf Betriebsebene"
+# overview PDF. This template uses narrow page margins (0.7 cm) for the wide
+# class table, so every line is indented by 0.8 cm to sit at the same absolute
+# position as the overview PDF's meta block (1.5 cm margin). Blocks are joined
+# with "\\" so no dangling line break precedes \end{flushleft}. For a repeated
+# inventory (inv_year_prev present) the two survey years share a small tabular;
+# for a single-inventory increment only the Inventur line is shown.
+indent <- "\\hspace*{0.8cm}"
+fmt_ha <- function(x) format(round(x), big.mark = ".", decimal.mark = ",",
+                             scientific = FALSE)
+blocks <- character(0)
+
+if (!is.null(m)) {
+  # Split available only when second-only plots were folded in (combined path).
+  has_split <- !is.null(m$n_plots_repeated) && !is.null(m$n_plots_backward)
+  # Tail of the current-inventory line: area and point count.
+  tail_parts <- character(0)
+  if (!is.null(m$area_ha)) tail_parts <- c(tail_parts,
+    paste0("\\textbf{Gesamtfl\\\"ache:} ", fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) tail_parts <- c(tail_parts,
+    paste0("\\textbf{Inventurpunkte:} ", as.integer(m$n_plots)))
+  tail_str <- paste(tail_parts, collapse = "\\hspace{1.5em}")
+
+  if (!is.null(m$inv_year_prev)) {
+    blocks <- c(blocks, sprintf(paste0(
+      "\\begin{tabular}{@{}l@{ }r@{}l}\n",
+      "\\textbf{Inventur:} & %d & \\hspace{2em}%s \\\\\n",
+      "\\textbf{Vorhergehende Inventur:} & %d & \\\\\n",
+      "\\end{tabular}"),
+      as.integer(m$year), tail_str, as.integer(m$inv_year_prev)))
+  } else if (!is.null(m$year)) {
+    line <- paste0("\\textbf{Inventur:} ", as.integer(m$year))
+    if (nzchar(tail_str)) line <- paste0(line, "\\hspace{1.5em}", tail_str)
+    blocks <- c(blocks, line)
+  }
+
+  if (!is.null(m$period_yr))
+    blocks <- c(blocks, paste0("\\textbf{Periode:} ", as.integer(m$period_yr),
+                               " Jahre"))
+  if (!is.null(m$method))
+    blocks <- c(blocks, paste0("\\textbf{Berechnungsmethode:} ",
+                               latex_escape(m$method)))
+  if (!is.null(m$fill_option))
+    blocks <- c(blocks, paste0("\\textbf{Erg\\\"anzungsmethode:} ",
+                               latex_escape(m$fill_option)))
+  # Compact point-count composition at the bottom of the meta block (only
+  # when second-only plots were folded in): repeatedly measured vs. newly
+  # established (BWI-3-backward-estimated) points.
+  if (has_split) {
+    fmt_n <- function(x) format(as.integer(x), big.mark = ".",
+                                scientific = FALSE)
+    blocks <- c(blocks, paste0(
+      "\\textbf{Wiederholt gemessene Punkte:} ", fmt_n(m$n_plots_repeated),
+      "; \\textbf{neu erfasste Punkte:} ", fmt_n(m$n_plots_backward),
+      " (BWI 3-Zuwachssch\\\"atzung)"))
+  }
+}
+
+cat("\\begin{flushleft}\n")
+if (length(blocks) > 0)
+  cat(indent, paste(blocks, collapse = paste0("\\\\\n", indent)), "\n", sep = "")
+cat("\\end{flushleft}\n")
+```
+
+```{r build-table, results = "asis"}
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+x  <- params$x
+
+# Numeric columns: the class levels (labels start with "(") plus the summary
+# column "total".
+class_cols <- names(x)[substr(names(x), 1, 1) == "("]
+num_cols   <- names(x)[vapply(x, is.numeric, logical(1))]
+
+# 1. Drop the display-only tree-count rows (n Bäume / n gnfi3).
+x <- dplyr::filter(x, !.data$variable %in% c("n_iv_total", "n_iv_filled"))
+
+# 2. Format numbers to strings (German): integer for the point count, one
+#    decimal otherwise. Done before the CI merge so all cells are character.
+is_int <- x$variable == "n_plot_class"
+fmt_cell <- function(v, intg) dplyr::case_when(
+  is.na(v) ~ NA_character_,
+  intg     ~ formatC(as.integer(round(v)), format = "d", big.mark = "."),
+  TRUE     ~ formatC(round(v, 1), format = "f", digits = 1,
+                     big.mark = ".", decimal.mark = ",")
+)
+for (cn in num_cols) x[[cn]] <- fmt_cell(x[[cn]], is_int)
+
+# 3. Merge the 95% CI into the TOTAL cell of the increment-sum and per-ha rows
+#    ("value ± ci"), then drop the standalone CI rows. Per-class cells stay
+#    value-only (the CI is shown only on the aggregated totals).
+x$total_ci <- NA_character_
+grp <- ifelse(is.na(x$species_group), "SUM", format(x$species_group))
+attach_ci_total <- function(dat, val_var, ci_var) {
+  ci_by_grp <- stats::setNames(dat$total[dat$variable == ci_var],
+                               grp[dat$variable == ci_var])
+  rows <- which(dat$variable == val_var)
+  for (i in rows) {
+    ci <- ci_by_grp[[grp[i]]]
+    if (!is.na(dat$total[i]) && !is.null(ci) && !is.na(ci))
+      dat$total_ci[i] <- paste0("± ", ci)
+  }
+  dat
+}
+x <- attach_ci_total(x, "iv_m3_yr_total", "ci95_iv_m3_yr_total")
+x <- attach_ci_total(x, "iv_m3_ha_yr",    "ci95_iv_m3_ha_yr")
+x <- dplyr::filter(x, !.data$variable %in%
+                     c("ci95_iv_m3_yr_total", "ci95_iv_m3_ha_yr"))
+
+# 4. Row labels. Ideal-area rows carry a superscript footnote reference (¹);
+#    the per-ha ideal-area value has no CI.
+x <- dplyr::mutate(x, variable = dplyr::recode(.data$variable,
+  n_plot_class     = "Anz. Pkte.",
+  site_index       = "Ertragskl. (mittl.)",
+  iv_m3_yr_total   = "zv (m³/J)",
+  iv_m3_ha_yr      = "zv (m³/ha/J)",
+  area_ha          = "Fl. (ha) ideell¹",
+  iv_m3_ha_yr_virt = "zv (m³/ha/J) ideell¹"
+))
+
+# 5. Vertical grouping by species; cross-species block (NA) at the bottom.
+vertical_index_dat <- x |>
+  dplyr::group_by(species_group) |>
+  dplyr::summarise(n = dplyr::n()) |>
+  dplyr::arrange(is.na(species_group), species_group)
+vertical_index <- vertical_index_dat$n
+grp_names <- format(vertical_index_dat$species_group)
+grp_names[is.na(vertical_index_dat$species_group)] <- "Total"
+names(vertical_index) <- grp_names
+
+# 6. Drop species_group; the variable column becomes the (blank-headed) label.
+x <- x |>
+  dplyr::ungroup() |>
+  dplyr::select(-.data$species_group) |>
+  dplyr::rename("Größe" = "variable")
+
+# 7. Horizontal grouping header over the class columns.
+horizontal_index <- c(1, length(class_cols), 2)
+names(horizontal_index) <- if (identical(params$type, "age"))
+  c(" ", "Altersklassen (Jahre)", " ") else c(" ", "dg-Klassen (cm)", " ")
+
+# 8. Render. The first column header ("Größe") is blanked. The generated
+#    LaTeX is post-processed so species blocks are not split across pages.
+cn <- names(x)[-1]
+cn[length(cn)] <- " "   # blank the header over the ± (total_ci) column
+kbl <- knitr::kable(x, format = "latex", booktabs = TRUE, longtable = TRUE,
+             escape = TRUE, col.names = c(" ", cn),
+             align = c("l", rep("r", length(class_cols) + 1L), "l")) |>
+  kableExtra::add_header_above(horizontal_index) |>
+  kableExtra::pack_rows(index = vertical_index,
+                        hline_after = FALSE, hline_before = TRUE) |>
+  kableExtra::kable_styling(font_size = 8,
+                            latex_options = c("repeat_header"))
+
+tex <- no_break_within_groups(as.character(kbl))
+# Tighten the gap between the Total value column and the ± (total_ci) column.
+repl <- "r@{\\hspace{5pt}}l}"
+pos  <- regexpr("rl}", tex, fixed = TRUE)
+if (pos > 0L)
+  tex <- paste0(substr(tex, 1L, pos - 1L), repl, substr(tex, pos + 3L, nchar(tex)))
+cat(tex)
+
+options(oo)
+```
+
+```{r ytables-used, results = "asis"}
+# Yield-table class tables carry the list of used yield tables; print it one
+# per line (Baumart label only on the first line of each group). NULL for the
+# repeated-survey / gnfi3 tables -> nothing printed.
+yt <- params$ytables_used
+if (!is.null(yt) && nrow(yt) > 0) {
+  oo2 <- options(fe_spec_lang = "ger")
+  t2 <- yt |>
+    dplyr::group_by(.data$species_group) |>
+    dplyr::mutate(
+      .lab = ifelse(dplyr::row_number() == 1L,
+                    format(.data$species_group), "")
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::transmute(`Baumart/Artgruppe` = .data$.lab,
+                     Ertragstafel = .data$name_orig)
+  cat("\\vspace{1em}\n\\noindent\\textbf{Verwendete Ertragstafeln}",
+      "\\par\\vspace{0.3em}\n", sep = "")
+  print(
+    knitr::kable(t2, booktabs = TRUE, longtable = TRUE, linesep = "", align = c("l", "l")) |>
+      kableExtra::kable_styling(latex_options = c("hold_position"),
+                                full_width = FALSE)
+  )
+  options(oo2)
+}
+```
+
+```{r footnote, results = "asis"}
+co <- params$collective
+m  <- params$meta
+cat("\\begin{flushleft}\\vspace{0.5em}\\small\\itshape\n")
+
+# 1. Volume unit.
+cat("Alle Volumenangaben verstehen sich als Erntefestmeter ohne Rinde ",
+    "(Efm o.R.).\n", sep = "")
+cat("\\par\\vspace{0.3em}\n")
+
+# 2. The increment includes trees removed between the two inventories.
+if (is.null(m$source)) {
+cat("Der ausgewiesene Zuwachs schlie\\ss{}t den Zuwachs der zwischen den beiden ",
+    "Inventuren ausgeschiedenen B\\\"aume mit ein.\n", sep = "")
+cat("\\par\\vspace{0.3em}\n")
+}
+
+# 3. The per-ha increment refers to the whole operation area.
+if (identical(co$kind, "main_stand")) {
+cat("Die hektarbezogenen Werte in der Zeile \"zv (m\\textsuperscript{3}/ha/J)\" ",
+    "beziehen sich auf die gesamte Betriebsfl\\\"ache; zu ihr z\\\"ahlen auch ",
+    "Inventurpunkte, die im gew\\\"ahlten Kollektiv keine B\\\"aume enthalten. ",
+    "Die Werte in der Zeile \"zv (m\\textsuperscript{3}/ha/J) ideell\" beziehen ",
+    "sich dagegen auf die ideelle Reinbestandsfl\\\"ache der jeweiligen Baumart.\n",
+    sep = "")
+} else {
+cat("Die hektarbezogenen Werte (\"zv (m\\textsuperscript{3}/ha/J)\") beziehen ",
+    "sich auf die gesamte Betriebsfl\\\"ache; zu ihr z\\\"ahlen auch ",
+    "Inventurpunkte, die im gew\\\"ahlten Kollektiv keine B\\\"aume enthalten.\n",
+    sep = "")
+}
+cat("\\par\\vspace{0.3em}\n")
+
+# 4. Collective-specific note.
+if (identical(co$kind, "main_stand")) {
+  cat("¹~Die Berechnung ideeller Anteilsfl\\\"achen ist aus methodischer ",
+      "Sicht problematisch; darauf bezogene Zuwachswerte sind stets mit Vorsicht ",
+      "zu interpretieren. ",
+      if (is.null(m$source)) paste0(
+        "Ber\\\"ucksichtigt sind die Standfl\\\"achen aller ",
+      "B\\\"aume des Kollektivs, auch der zwischen den Inventuren ausgeschiedenen. ") else "",
+      "Bei starken Verschiebungen der Baumartenanteile (z.\\,B. durch ",
+      "Extremereignisse) k\\\"onnen fl\\\"achenbezogene Zuw\\\"achse resultieren, ",
+      "die biologisch stark unplausibel, aber rechnerisch richtig sind. ",
+      "Hektarbezogene Zuw\\\"achse, die sich auf die gesamte Betriebsfl\\\"ache ",
+      "beziehen, sind von diesem m\\\"oglichen Problem nicht betroffen.\n",
+      sep = "")
+} else {
+  cat("F\\\"ur dieses Kollektiv werden keine ideellen Baumarten-Anteilsfl\\\"achen ",
+      "und keine darauf bezogenen Zuw\\\"achse ausgewiesen -- das ist nur f\\\"ur ",
+      "den Hauptbestand m\\\"oglich.\n", sep = "")
+}
+cat("\\par\\vspace{0.3em}\n")
+
+# 5. CI meaning + optimism note.
+if (is.null(m$source)) {
+cat("Mit \\ensuremath{\\pm} ist die Halbweite des 95\\,\\%-Konfidenzintervalls ",
+    "des jeweiligen Gesamt-Zuwachswertes angegeben (nur in der Spalte ",
+    "\"Total\"). Da in den Zuwachs sowohl wiederholt gemessene als auch mit den ",
+    "Zuwachsfunktionen der 3.~Bundeswaldinventur (BWI~3) gesch\\\"atzte Punkte ",
+    "und B\\\"aume eingehen, ist er als eher optimistische Sch\\\"atzung des ",
+    "Vertrauensbereichs zu verstehen.\n", sep = "")
+}
+
+# 6. rep_classic note (only when that calculation method was used).
+if (!is.null(m$method) && identical(m$method, "rep_classic")) {
+  cat("\\par\\vspace{0.3em}\n")
+  cat("Bei der Berechnungsmethode \"rep\\_classic\" k\\\"onnen in Einzelf\\\"allen ",
+      "negative Zuw\\\"achse auftreten. Das ist statistisch korrekt.\n", sep = "")
+}
+cat("\\end{flushleft}\n")
+```

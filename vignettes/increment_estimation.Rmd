@@ -1,0 +1,353 @@
+---
+title: "Estimating Forest Volume Increment With FeNEU"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Estimating Forest Volume Increment With FeNEU}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: REFERENCES.bib
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  message  = FALSE,
+  warning  = FALSE
+)
+```
+
+```{r setup, message = FALSE}
+library(FeNEU)
+library(dplyr)
+
+options(fe_spec_lang = "eng") # display species names in English
+```
+
+## 1 Introduction
+
+Volume increment cannot be read off an inventory the way standing volume can.
+*FeNEU* estimates it in three ways, and the [main vignette](FeNEU.html) gives
+the outside view -- what each looks like from the calling side. This vignette
+is about the methods themselves.
+
+| Approach | Data required | Reports |
+|---|---|---|
+| Repeated survey | two surveys of the same plots | any tree collective, with a confidence interval |
+| BWI 3 growth functions | one survey, with tree ages | any tree collective |
+| Yield tables | one survey, with tree ages | main stand only |
+
+The repeated survey observes the increment from measurements taken twice; the
+other two model it from a single survey. One consequence runs through
+everything below: Only the repeated survey carries a **confidence
+interval** -- the two single-inventory methods are fully model-based and report
+none.
+
+All three build extensively on *ForestElementsR* [@biber_torano_2026], and all
+three return an object of class `fe_increment` -- a bundle that carries the
+estimate together with the figures its reports print -- so from the estimate
+onward they are consumed the same way (Section 6).
+
+
+## 2 Preparing the tree data
+
+Each entry point takes two things: the `fe_inventory` object -- two of them, for
+a repeated survey -- and a prepared tree list pulled from it. The inventory
+carries the plot structure the estimate needs (plot matching, represented areas,
+survey years, the figures for the report header); the tree list carries the
+completed heights and the derived tree attributes (species group, basal area,
+diameter and height classes). Pulling and preparing the tree list is
+time-consuming, so it is done once and passed alongside the inventory.
+
+The canonical preparation is
+
+```{r prep_chain, eval = FALSE}
+twh <- inv |> pull_trees() |> height_complete_inventory()
+inv |> fill_heights_back(twh) |> pull_trees() |> trees_add_essentials(method = "BaySF")
+```
+
+The second `pull_trees()` is the point: `fill_heights_back()` writes the
+estimated heights into the inventory, so the re-pull carries them in `height_m`
+and no working column travels on. The tree list is what you keep; the inventory
+you pass to the estimate is the original object -- the estimate takes the tree
+heights from the list, and uses the inventory only for the plot geometry it needs
+to match plots and trees and to weight by represented area.
+
+The package ships the prepared lists of the ex3 survey pair, so we start from
+them.
+
+```{r data}
+inv_1st   <- data_ex3_previous_sample_fe_inventory
+inv_2nd   <- data_ex3_sample_fe_inventory
+trees_1st <- data_ex3_previous_sample_trees_essentials
+trees_2nd <- data_ex3_sample_trees_essentials
+```
+
+
+## 3 Increment from a repeated survey
+
+Two surveys of the same plots let the increment be observed rather than
+modelled. `inv_increment_repeated_survey()` covers the whole chain -- the plots
+of the two surveys are matched, the trees within them are matched, an increment
+is derived for every tree, and the trees that could not be matched are dealt
+with according to the `fill_option` -- and returns the bundle:
+
+```{r repsurv}
+inc <- inv_increment_repeated_survey(
+  inv_1st       = inv_1st,
+  inv_2nd       = inv_2nd,
+  inv_1st_trees = trees_1st,
+  inv_2nd_trees = trees_2nd,
+  method        = "rep_classic",
+  fill_option   = "standard",
+  progress_bar  = FALSE
+)
+
+inc
+names(inc)
+```
+
+`trees` holds the per-tree increments, `overview` the aggregation by plot and
+enterprise, `summaric` the increment balance of the enterprise, and `meta` the
+figures the reports print in their header. `steps` holds the intermediate
+results of the chain and is `NULL` unless `keep_steps = TRUE` is requested.
+
+Two arguments decide what the estimate means: `method` (Section 3.1) and
+`fill_option` (Section 3.2).
+
+### 3.1 The four methods
+
+`method` selects how a tree's increment is derived from its two measurements.
+The trees differ in whether they crossed a concentric-circle threshold between
+the surveys -- and thus changed the number of trees they represent per hectare
+($n_1 \neq n_2$) -- which is exactly what the methods handle differently. Write
+$v_1, v_2$ for the tree's volume and $n_1, n_2$ for its representation number at
+the first and second survey.
+
+**`rep_classic`** is the default and, with `rep_trans`, the one to reach for
+first. A re-measured tree contributes
+$$iv = n_2 v_2 - n_1 v_1,$$
+an ingrowth tree its full second volume $iv = n_2 v_2$. This reproduces the
+classic stand-level increment (the German *ertragsgeschichtlicher Zuwachs*),
+which is its virtue: the enterprise total agrees with the balance-based figure
+(Section 3.4). Its price is that a tree which crossed a threshold ($n_2 < n_1$)
+can come out with a **negative** increment when the volume gain does not
+outweigh the drop in representation number -- odd at first sight, but
+statistically valid.
+
+**`rep_trans`** avoids that by splitting a threshold-crossing tree at the
+threshold. A tree that did not cross contributes $iv = n\,(v_2 - v_1)$; one that
+crossed contributes
+$$iv = n_2 (v_2 - v_t) + n_1 (v_t - v_1),$$
+where $v_t$ is its volume at the threshold. It always yields $iv \geq 0$, at the
+cost of no longer matching the classic stand-level figure.
+
+The remaining two are simpler variants for re-measured trees, both guaranteeing
+$iv \geq 0$ (with `clamp_plausible_shrinkage = TRUE`) and neither matching the
+classic figure: **`rep_mean`** weights the volume change with the mean
+representation number, $iv = \tfrac{n_1 + n_2}{2}(v_2 - v_1)$, and **`rep_end`**
+with the second, $iv = n_2 (v_2 - v_1)$.
+
+The choice moves the enterprise increment noticeably (however significantly
+more for our extremely small example (10 inventory points) than it would for
+a typical sample inventory with several hundred up to several thousand points):
+
+```{r methods_compare}
+overall <- function(inc_m, m) {
+  tc  <- output_increment_overall(inc_m)$table_combined
+  tot <- tc[tc$is_total_row, ]
+  tibble(method = m, iv_m3_ha_yr = tot$iv_m3_ha_yr_st)
+}
+
+# `inc` above is already the rep_classic run, so only rep_trans is new here
+inc_trans <- inv_increment_repeated_survey(
+  inv_1st, inv_2nd, trees_1st, trees_2nd,
+  method = "rep_trans", fill_option = "standard", progress_bar = FALSE
+)
+
+bind_rows(overall(inc, "rep_classic"), overall(inc_trans, "rep_trans"))
+```
+
+The figure compared here is the per-tree route (`iv_m3_ha_yr_st`), the one that
+responds to the method; the enterprise balance -- the number the bundle print
+reports -- does not, and Section 3.4 explains the difference.
+
+### 3.2 Filling the gaps
+
+Not every tree can be matched. `fill_option` governs what happens to those that
+cannot, using backward and forward estimates from the BWI 3 growth functions
+(Section 4):
+
+- **`standard`** (default) uses the measured increment wherever a tree was
+  identified and is present in the second survey. A tree present only in the
+  first survey (harvested or dead) receives a forward estimate over half the
+  period; a tree present only in the second survey that could not be identified
+  receives a backward estimate over the whole period.
+- **`min_estimates`** uses an estimate only where a tree cannot be identified
+  across the surveys; a tree present only in the first survey then receives a
+  zero increment.
+- **`all_estimates`** replaces every measured increment with a model estimate.
+
+Plots that exist only in the second survey always carry estimates, whatever the
+option says -- there is no earlier measurement that an estimate could displace.
+
+### 3.3 The individual steps
+
+`inv_increment_repeated_survey()` runs a chain of six functions, each exported
+so a single stage can be inspected or varied. Ordinary work needs only the one
+call above; the steps, in order, are `inv_increment_repsurv_ccirc()` (plot and
+tree matching, the four methods), `inv_inc_fill_gaps_gnfi3()` (the BWI 3
+estimates for the gaps), `inv_inc_tree_consolidate()` (apply the
+`fill_option`), `inv_inc_tree_extend()` (add the age and diameter classes),
+`inv_inc_tree_extend_combined()` (fold in the second-only plots), and
+`inv_inc_big_overview()` (the enterprise level). See their help pages for the
+details of each.
+
+### 3.4 Reports
+
+From the bundle there are two directions. Broken down by species group and
+class, in the layout of the status-quo base tables (see the main vignette):
+
+```{r repsurv_basetable}
+increment_base_table_main_stand(inc, by_class = "age") |>
+  output_increment_base_table() |>
+  head(10)
+```
+
+`by_class = "dq"` groups by quadratic-mean-diameter class instead, for
+inventories without ages. The other direction is the enterprise level:
+
+```{r repsurv_overall}
+ovr <- output_increment_overall(inc)
+
+ovr$table_combined |>
+  select(species_group, is_total_row, iv_m3_ha_yr_st, iv_m3_ha_yr_sum)
+```
+
+The total row is the enterprise as a whole. The two columns are two routes to
+it: `_st` adds up the individual-tree increments, `_sum` is the balance of the
+two surveys over the whole measured population (second-survey volume, minus
+first, plus what was removed in between). For the enterprise the balance is the
+reference figure; the per-tree route is what allows the breakdown into species
+and classes. Besides `table_combined` (all points), the result holds
+`table_matched` (points measured twice) and `table_2nd_only` (points the later
+survey added). The **confidence interval** lives in `table_matched` -- it is
+derived from the scatter between the points measured twice, which the
+second-only points cannot contribute to, so the combined table carries none:
+
+```{r repsurv_ci}
+ovr$table_matched |>
+  filter(is_total_row) |>
+  select(iv_m3_ha_yr_st, ci95_iv_m3_ha_yr_st)
+```
+
+Both directions have a `*_pdf()` counterpart -- `output_increment_base_table_pdf()`
+and `output_increment_overall_pdf()` -- following the three-step pattern
+(aggregate, restructure, render) of the status-quo tables:
+
+```{r repsurv_pdf, eval = FALSE}
+increment_base_table_main_stand(inc, by_class = "age") |>
+  output_increment_base_table() |>
+  output_increment_base_table_pdf(
+    tab_title  = "Example forest enterprise",
+    type       = "age",
+    output_dir = tempdir()
+  )
+
+output_increment_overall_pdf(ovr, output_dir = tempdir())
+```
+
+
+## 4 Increment from a single survey with BWI 3 functions
+
+Where only one survey exists, the increment can be estimated from the current state
+of the trees. The growth functions of the third German National Forest Inventory
+(BWI 3) [@bwi3_methods_2017] estimate each tree's diameter and height growth
+from its own dimensions and age; the volume increment follows from the projected
+volumes. `inv_increment_gnfi3()` covers the chain and returns the same kind of
+bundle:
+
+```{r gnfi3}
+inc_bwi3 <- inv_increment_gnfi3(
+  inv       = inv_2nd,
+  inv_trees = trees_2nd,
+  dt        = 5
+)
+
+inc_bwi3
+```
+
+`dt` is the span the estimate covers, in years: a positive value looks forward,
+a negative one back. Five years is a deliberate default -- the further such an
+estimate reaches, the more it is affected by removals, mortality and ingrowth it
+cannot know about. Because the estimate ages every tree, it needs the age of
+every tree; where a stand layer carries none the function stops rather than
+evaluating only the part that happens to have one. The estimate is made for the
+whole population per tree, so any collective can be reported from it; it carries
+no confidence interval.
+
+From here the reports of Section 3.4 apply unchanged -- the class tables, and a
+species-group overview of the annual increment:
+
+```{r gnfi3_overview}
+increment_base_table(inc_bwi3, by_class = "age") |>
+  output_increment_overview_gnfi3()
+```
+
+
+## 5 Increment from a single survey with yield tables
+
+Yield tables take the other route. They work at stand level rather than per
+tree, which requires the area to be split into the shares of virtual
+monospecific stands, so this approach applies to the **main stand only**.
+*FeNEU* uses the yield-table system of *ForestElementsR*
+(`vignette("yield_tables", package = "ForestElementsR")`).
+
+```{r ytables}
+inc_yt <- inv_increment_ytables(
+  inv              = inv_2nd,
+  inv_trees        = trees_2nd,
+  ytable_selection = ytables_bavrn_state_var_1_feneu
+)
+
+inc_yt
+```
+
+`ytables_bavrn_state_var_1_feneu` assigns a yield table to each species code. It
+is the set *FeNEU* ships. The assignment can be replaced by one of your own.
+
+The estimate is made for each **cohort** -- one species in the main stand of one
+inventory plot, on the virtual monospecific area it occupies there. The cohort's
+age and mean height give its site index; age and site index give the per-hectare
+increment the table holds; and that figure is corrected by the stocking level,
+the cohort's basal area over the basal area the table expects. A cohort has one
+age and one mean diameter, so grouping a report by age class or by diameter
+class labels the same estimate rather than changing it. There is no confidence
+interval.
+
+```{r ytables_overview}
+inc_yt$overview
+```
+
+`area_ha` is the virtual area of each species group, `site_index` its mean yield
+class, and `zv_m3_ha_yr` the increment on that virtual area. The total row
+relates the whole increment to the entire inventory area, the larger reference,
+and its `site_index` is empty because the index scales of different tables
+cannot be averaged.
+
+Yield-table increments typically run lower than the other two methods, and 
+this is expected: the tables in use describe a growth level that the observed 
+increment in Central Europe has exceeded over recent decades [@pretzsch_forest_2014;
+@pretzsch_forest_2023]. The value is still a well-established, easy-to-communicate
+baseline. The class tables are built and formatted exactly as for the other methods:
+
+```{r ytables_basetable}
+increment_ytables_base_table(inc_yt, by_class = "age") |>
+  output_increment_base_table() |>
+  head(10)
+```
+
+
+## References

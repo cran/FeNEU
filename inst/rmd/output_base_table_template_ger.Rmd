@@ -1,0 +1,393 @@
+---
+params:
+  x:
+  tab_title:
+  type:
+  meta: !r NULL
+  cohort: !r NULL
+title: "Basistabelle `r params$tab_title`"
+subtitle: "`r paste0(if(params$type == 'dq') 'nach Mitteldurchmesser-Klassen' else 'nach Altersklassen', if (identical(params$cohort, 'mainstand')) ', Hauptbestand' else if (identical(params$cohort, 'alllayers')) ', Alle Schichten' else paste0(', Benutzerdefinierte Auswahl: ', params$cohort))`"
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=0.7cm,right=0.7cm,top=1cm,bottom=1.2cm"
+fontsize: 10pt
+header-includes:
+  # The table LaTeX is emitted via cat() from an asis chunk (to post-process
+  # the page-break behaviour), so knitr does not auto-load the kableExtra table
+  # packages -- declare them here.
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r meta-block, echo=FALSE, results="asis"}
+if (!is.null(params$meta)) {
+  m <- params$meta
+  # Thousands separated by a space, not a dot: "15 575" reads the same to
+  # German and English readers, whereas "15.575" looks like a decimal number.
+  fmt_ha <- function(x) format(round(x), big.mark = " ", decimal.mark = ",",
+                                scientific = FALSE)
+  parts <- character(0)
+  if (!is.null(m$year))    parts <- c(parts, paste0("\\textbf{Inventurjahr:} ",       as.integer(m$year)))
+  if (!is.null(m$area_ha)) parts <- c(parts, paste0("\\textbf{Gesamtfl\\\"ache:} ",  fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) parts <- c(parts, paste0("\\textbf{Inventurpunkte:} ",    as.integer(m$n_plots)))
+  if (length(parts) > 0)
+    cat("\\begin{center}\\small ", paste(parts, collapse = "\\qquad "), "\\end{center}\\vspace{-0.5em}\n", sep = "")
+}
+```
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE, results = "asis"}
+
+# https://haozhu233.github.io/kableExtra/awesome_table_in_html.html
+# https://www.pipinghotdata.com/posts/2022-01-24-report-ready-pdf-tables-with-rmarkdown-knitr-kableextra-and-latex/
+
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+
+# Take the table from params, not from the calling frame. rmarkdown::render()
+# evaluates in the caller's environment, so a bare `x` happened to resolve to
+# the local variable of output_base_table_pdf() - which only works as long as
+# that argument keeps its name. Everything below then works on this local copy.
+x <- params$x
+
+# Prevent page breaks WITHIN a species block of a kableExtra longtable (same
+# mechanism as the increment base tables). Each pack_rows group starts with a
+# line "\addlinespace[0.3em]". A longtable row ending in "\\" allows a break
+# after it, "\\*" forbids it. We turn every breakable terminator into "\\*",
+# except the row right before the next group boundary, so breaks still happen
+# between species blocks. Blocks are small (a handful of rows), so they never
+# exceed a page.
+no_break_within_groups <- function(tex) {
+  lines <- strsplit(tex, "\n", fixed = TRUE)[[1]]
+  is_boundary <- trimws(lines) == "\\addlinespace[0.3em]"
+  n <- length(lines)
+  for (i in seq_len(n)) {
+    ln <- lines[i]
+    if (endsWith(ln, "\\\\") && !endsWith(ln, "\\\\*")) {
+      j <- i + 1L
+      while (j <= n && trimws(lines[j]) == "") j <- j + 1L
+      next_boundary <- j <= n && is_boundary[j]
+      next_end      <- j <= n && grepl("end{longtable}", lines[j], fixed = TRUE)
+      if (!next_boundary && !next_end) lines[i] <- paste0(ln, "*")
+    }
+  }
+  paste(lines, collapse = "\n")
+}
+
+# 1. Filter and translate BEFORE building row-count index.
+# The two G-share rows: pct_anteil_bag is the species group's basal-area share
+# within its (age/dq) class column (columns sum to 100 % across species);
+# pct_anteil_class is the class' basal-area share of the grand total (the
+# Gesamt block, rows sum to 100 % across classes). Both are labelled "G-Ant."
+# and disambiguated by a footnote. conf_95_per is the +/- half-width of the
+# 95 % confidence interval of V, in percent of V.
+x <- x |>
+  dplyr::filter(.data$variable != "tot_area_class") |>
+  dplyr::mutate(variable = dplyr::recode(.data$variable,
+    v_hub_m3    = "V (m³)",
+    g_m2        = "G (m²)",
+    n           = "N",
+    d_q_cm      = "dg (cm)",
+    h_q_m       = "hg (m)",
+    n_plot      = "Anz. Pkte.",
+    area_ha     = "Fl. ideell (ha)",
+    v_hub_m3_ha = "V (m³/ha)",
+    g_m2_ha     = "G (m²/ha)",
+    n_ha        = "N (/ha)",
+    conf_95_per = "95%-VB (± %)",
+    pct_anteil_bag   = "G-Ant. Artgr. (%)",
+    pct_anteil_class = "G-Ant. Klasse (%)"
+  ))
+
+# 1a. The area share needs a label that depends on the block it sits in,
+# because one variable carries two meanings (unlike the basal-area shares,
+# which arrive as two separate variables): inside a species block per_species
+# is the species group's share of the class column's ideal area (columns sum
+# to 100 %), whereas in the cross-species block it is the class' share of the
+# total ideal area (the row sums to 100 %). The names mirror the two G-share
+# rows so the parallel is visible.
+x <- x |>
+  dplyr::mutate(variable = dplyr::case_when(
+    .data$variable != "per_species"  ~ .data$variable,
+    is.na(.data$species_group)       ~ "Fl.-Ant. Klasse (%)",
+    TRUE                             ~ "Fl.-Ant. Artgr. (%)"
+  ))
+
+# 1b. Row order within each species block: an annotation row sits directly
+# under the quantity it belongs to - the 95 % CI under V, the G-share rows
+# under G - and "Anz. Pkte." always comes last. Absent rows (e.g. the per-ha
+# / area rows exist only in the main-stand variant) are simply skipped.
+.var_order <- c("V (m³)", "95%-VB (± %)", "G (m²)", "G-Ant. Artgr. (%)",
+                "G-Ant. Klasse (%)", "N", "dg (cm)", "hg (m)",
+                "Fl. ideell (ha)", "Fl.-Ant. Artgr. (%)", "Fl.-Ant. Klasse (%)",
+                "V (m³/ha)", "G (m²/ha)", "N (/ha)",
+                "Anz. Pkte.")
+x <- x |>
+  dplyr::mutate(variable = factor(.data$variable, levels = .var_order,
+                                  ordered = TRUE)) |>
+  dplyr::arrange(is.na(.data$species_group), .data$species_group,
+                 .data$variable) |>
+  dplyr::mutate(variable = as.character(.data$variable))
+
+# 2. Vertical grouping by species (must reflect filtered row count).
+#    The cross-species block carries a NA species_group; it is forced to the
+#    bottom and labelled "Alle Artgruppen" - distinct from the "Gesamt" column
+#    on the right (the species rows keep their original order).
+vertical_index_dat <- x |>
+  dplyr::group_by(species_group) |>
+  dplyr::summarise(n = dplyr::n()) |>
+  dplyr::arrange(is.na(species_group), species_group)
+
+vertical_index <- vertical_index_dat$n
+grp_names <- format(vertical_index_dat$species_group)
+grp_names[is.na(vertical_index_dat$species_group)] <- "Alle Artgruppen"
+names(vertical_index) <- grp_names
+
+# 3. Drop species_group column and rename variable/total columns
+x <- x |>
+  dplyr::ungroup() |>
+  dplyr::select(-"species_group") |>
+  dplyr::rename("Artgruppe" = "variable", "Gesamt" = "total")
+
+# 3b. dg and hg are suppressed in the "Gesamt" column. That column pools every
+# class of the block, and the basal-area mean tree of such a wide collective
+# describes no real stand any more - a single dg over all age classes from
+# thicket to old timber is not a meaningful figure. The cells are blanked
+# (knitr.kable.NA = "") rather than the rows dropped, so the block keeps its
+# per-class values.
+x$Gesamt[x$Artgruppe %in% c("dg (cm)", "hg (m)")] <- NA
+
+# 4. Pre-format numeric columns, German conventions: decimal comma, and
+# thousands separated by a space (unambiguous in both German and English,
+# unlike a thousands dot, which reads as a decimal point to English readers).
+# The absolute V / G / N rows and the point counts are shown as whole numbers -
+# deliberately NOT rescaled to thousands, because small enterprises (e.g. 100
+# ha) would lose all resolution that way. Their per-ha siblings and every other
+# row keep one decimal.
+fmt_de <- function(v, digits) {
+  formatC(v, format = "f", digits = digits, big.mark = " ", decimal.mark = ",")
+}
+num_col_names <- names(x)[sapply(x, is.numeric)]
+int_rows      <- c("V (m³)", "G (m²)", "N", "Anz. Pkte.")
+is_int_row    <- x$Artgruppe %in% int_rows
+for (cn in num_col_names) {
+  x[[cn]] <- dplyr::case_when(
+    is.na(x[[cn]])  ~ NA_character_,
+    is_int_row      ~ fmt_de(round(x[[cn]]), 0),
+    TRUE            ~ fmt_de(x[[cn]], 1)
+  )
+}
+
+# 5. Horizontal grouping header. The class columns are everything between the
+# row-label column and "Gesamt" - counted by exclusion rather than by their
+# "(a,b]" spelling, because trees of unknown age form a class column literally
+# named "NA", which the spelling test would leave outside the spanner.
+n_class_cols     <- ncol(x) - 2L
+horizontal_index <- c(1, n_class_cols, 1)
+
+if (params$type == "age") {
+  names(horizontal_index) <- c(" ", "Altersklassen (Jahre)", " ")
+} else {
+  names(horizontal_index) <- c(" ", "dg-Klassen (cm)", " ")
+}
+
+# 5b. Open top class: (160,999] / (60,999] -> ">160" / ">60" (999 is the
+# sentinel upper break from pulled_methods.R).
+names(x) <- sub("^\\(([0-9]+),999\\]$", ">\\1", names(x))
+
+# 5c. Trees without an age end up in a class whose level is NA, which pivots to
+# a column named "NA". It gets a short label rather than a descriptive one: the
+# header is what sets this column's width, and a spelt-out heading pushed wide
+# tables (e.g. Sailershausen) over the page. What "k. A." stands for is
+# explained in the notes below the table instead.
+na_col <- names(x) == "NA"
+has_no_class_col <- any(na_col)
+if (has_no_class_col) names(x)[na_col] <- "k. A."
+
+# 5d. Fit the table to the text width. The number of class columns is not fixed
+# (an extra "o. Altersangabe" column appears whenever ages are incomplete) and
+# neither is the magnitude of the numbers, so a large enterprise with an extra
+# column can outgrow the page. A longtable cannot be scaled with \resizebox -
+# it has to stay breakable across pages - so the levers are the font size and
+# the inter-column padding, and both are derived from the actual content.
+#
+# The width of a column is estimated from its widest entry, charging 0.5 em per
+# digit or letter (the width of a digit in the default font, which uses tabular
+# figures) and 0.3 em for spaces and punctuation. Padding is given up before
+# type size, because tighter columns are far less noticeable than smaller
+# print.
+#
+# Everything below is derived from the page geometry and from the content of
+# this particular table - no constant is tuned to any specific inventory.
+page_width_cm <- 21.0   # a4paper (classoption in the YAML header)
+margin_cm     <- 0.7    # keep in sync with the geometry setting above
+text_width_pt <- (page_width_cm - 2 * margin_cm) / 2.54 * 72.27
+
+str_width_em <- function(s) {
+  s <- s[!is.na(s)]
+  if (length(s) == 0) return(0)
+  max(vapply(strsplit(s, "", fixed = TRUE), function(chs) {
+    sum(ifelse(chs %in% c(" ", ".", ",", "(", ")", "%", "-"), 0.30, 0.50))
+  }, numeric(1)))
+}
+
+col_em <- vapply(seq_along(x), function(j) {
+  max(str_width_em(as.character(x[[j]])), str_width_em(names(x)[j]))
+}, numeric(1))
+
+font_sizes <- c(8, 7, 6, 5)
+colseps    <- c(6, 4, 3, 2)
+# Fallback if even the smallest combination is too wide: use it anyway, so the
+# table is as narrow as this mechanism can make it.
+fit   <- list(font_size = min(font_sizes), colsep = min(colseps))
+found <- FALSE
+for (fs in font_sizes) {
+  for (cs in colseps) {
+    if (sum(col_em) * fs + 2 * cs * ncol(x) <= text_width_pt) {
+      fit   <- list(font_size = fs, colsep = cs)
+      found <- TRUE
+      break
+    }
+  }
+  if (found) break
+}
+
+# 6. Render table. The generated LaTeX is post-processed so that a species
+#    block is never split across a page boundary.
+kbl <- knitr::kable(x, format = "latex",
+             format.args = list(scientific = FALSE),
+             booktabs = TRUE, longtable = TRUE,
+             align = c("l", rep("r", ncol(x) - 1))) |>
+  kableExtra::add_header_above(horizontal_index) |>
+  kableExtra::pack_rows(index = vertical_index,
+                        hline_after = FALSE,
+                        hline_before = TRUE) |>
+  kableExtra::kable_styling(font_size = fit$font_size,
+                            latex_options = c("repeat_header"))
+
+# 6b. Set the area / per-hectare block off visually: a rule above the first of
+# its rows and one below the last. Deliberately \cmidrule and not \midrule -
+# \midrule spans the full tabular width like the species separators, whereas
+# \cmidrule(lr){1-n} covers just the row labels and the numbers and is trimmed
+# at both ends, so it reads as a subdivision inside a species block rather
+# than as another block boundary. Only present in the main-stand variant,
+# which is the only one carrying these rows.
+bracket_block <- function(tex, first_row, last_row, n_col) {
+  lines <- strsplit(tex, "\n", fixed = TRUE)[[1]]
+  rule  <- sprintf("\\cmidrule(lr){1-%d}", n_col)
+  out   <- character(0)
+  for (ln in lines) {
+    if (grepl(first_row, ln, fixed = TRUE)) out <- c(out, rule)
+    out <- c(out, ln)
+    if (grepl(last_row, ln, fixed = TRUE))  out <- c(out, rule)
+  }
+  paste(out, collapse = "\n")
+}
+
+tex <- no_break_within_groups(as.character(kbl))
+if ("Fl. ideell (ha)" %in% x$Artgruppe && "N (/ha)" %in% x$Artgruppe)
+  tex <- bracket_block(tex, "Fl. ideell (ha) &", "N (/ha) &", ncol(x))
+
+# Emitted as a plain command (no brace group), which pandoc passes through as
+# raw LaTeX; the table is the only tabular material in the document.
+cat("\\setlength{\\tabcolsep}{", fit$colsep, "pt}\n", sep = "")
+cat(tex)
+
+options(oo)
+```
+
+```{r disclaimer, echo=FALSE, results="asis"}
+disc_text <- NULL
+if (identical(params$cohort, "mainstand")) {
+  # The main-stand caveat mirrors the one carried by the increment base tables:
+  # restricting the table to the main stand is what makes ideal (virtual pure
+  # stand) species areas computable in the first place, but those areas are
+  # methodically delicate, so anything derived from them needs care.
+  disc_text <- paste0("Diese Tabelle umfasst nur den Hauptbestand, nicht das ",
+                      "gesamte erfasste Inventurkollektiv. Nur für den ",
+                      "Hauptbestand lassen sich ideelle Baumarten-Anteilsflächen ",
+                      "und darauf bezogene Hektarwerte berechnen. Die Berechnung ",
+                      "solcher ideellen Anteilsflächen ist aus methodischer Sicht ",
+                      "allerdings problematisch; darauf bezogene Werte sind stets ",
+                      "mit Vorsicht zu interpretieren.")
+} else if (identical(params$cohort, "alllayers")) {
+  disc_text <- paste0("Diese Tabelle beinhaltet die Werte aller Bestandesschichten. ",
+                      "Sie umfasst daher das gesamte Holzvolumen des Betriebes, ",
+                      "erlaubt aber nicht die Berechnung von ideellen Flächenanteilen ",
+                      "und daher auch nicht die Angabe von darauf bezogenen ",
+                      "Per-Hektar-Werten.")
+}
+
+# Explanatory notes below the table. Which entries appear depends on the rows
+# the variant actually carries (the main-stand variant has area / per-ha rows
+# the all-layers variant does not), so nothing is explained that is not shown.
+vars_present <- unique(x$Artgruppe)
+has <- function(v) v %in% vars_present
+# "%" starts a comment in LaTeX and this block is emitted as raw LaTeX.
+esc <- function(s) gsub("%", "\\\\%", s)
+
+notes <- character(0)
+if (!is.null(disc_text)) notes <- c(notes, disc_text)
+notes <- c(notes,
+  "Alle Volumenangaben verstehen sich als Erntefestmeter ohne Rinde (Efm o.R.).")
+# Only explained when the column is actually there (it appears whenever the
+# inventory carries incomplete ages).
+if (has_no_class_col)
+  notes <- c(notes, paste0(
+    "k. A.: keine Altersangabe. Diese Spalte fasst alle Bäume zusammen, für die ",
+    "kein Alter vorliegt; sie bilden eine eigene Klasse und sind damit in den ",
+    "Zeilensummen der Spalte \"Gesamt\" enthalten."))
+# The confidence-interval note follows the volume note directly: it refers to
+# V and belongs next to the statement of V's unit.
+if (has("95%-VB (± %)"))
+  notes <- c(notes, paste0(
+    "95%-VB (± %): halbe Breite des zweiseitigen 95%-Vertrauensbereichs des ",
+    "Vorrats V, in Prozent von V. Der zugrundeliegende Standardfehler ist ",
+    "flächengewichtet geschätzt."))
+if (has("dg (cm)") || has("hg (m)"))
+  notes <- c(notes, paste0(
+    "dg, hg: Durchmesser bzw. Höhe des Grundflächenmittelstamms. In der Spalte ",
+    "\"Gesamt\" werden dg und hg nicht ausgewiesen: über alle Klassen hinweg ",
+    "ist die Angabe eines Mittelstamms nicht sinnvoll."))
+if (has("G-Ant. Artgr. (%)"))
+  notes <- c(notes, paste0(
+    "G-Ant. Artgr. (%): Grundflächenanteil der Artgruppe innerhalb der ",
+    "jeweiligen Klassenspalte. Die Werte einer Spalte summieren sich über alle ",
+    "Artgruppen zu 100 %."))
+if (has("G-Ant. Klasse (%)"))
+  notes <- c(notes, paste0(
+    "G-Ant. Klasse (%): Grundflächenanteil der jeweiligen Klasse am Gesamtwert. ",
+    "Die Werte dieser Zeile summieren sich über alle Klassen zu 100 %."))
+if (has("Fl. ideell (ha)"))
+  notes <- c(notes, paste0(
+    "Fl. ideell (ha): ideelle Anteilsfläche der Artgruppe; die hektarbezogenen ",
+    "Werte beziehen sich auf diese Fläche."))
+if (has("Fl.-Ant. Artgr. (%)"))
+  notes <- c(notes, paste0(
+    "Fl.-Ant. Artgr. (%): Anteil der Artgruppe an der ideellen Fläche der ",
+    "jeweiligen Klassenspalte. Die Werte einer Spalte summieren sich über alle ",
+    "Artgruppen zu 100 %."))
+if (has("Fl.-Ant. Klasse (%)"))
+  notes <- c(notes, paste0(
+    "Fl.-Ant. Klasse (%): Anteil der jeweiligen Klasse an der ideellen ",
+    "Gesamtfläche. Die Werte dieser Zeile summieren sich über alle Klassen zu ",
+    "100 %."))
+notes <- c(notes, paste0(
+  "Anz. Pkte.: Anzahl der Inventurpunkte, auf denen die jeweilige Gruppe ",
+  "vertreten ist. Die Summe über die Tabelle kann von der oben angegebenen ",
+  "Gesamtzahl der Inventurpunkte abweichen, weil nicht auf jedem Inventurpunkt ",
+  "Bäume vorkommen, die den Auswahlkriterien dieser Tabelle entsprechen."))
+
+# Emitted as raw LaTeX: use real environments throughout. A bare "{ ... }"
+# grouping is NOT recognised as LaTeX by pandoc and would leak into the text.
+cat("\n\\vspace{0.8em}\n\\begin{footnotesize}\n")
+cat("\\textbf{Erläuterungen}\n")
+cat("\\begin{itemize}\\setlength{\\itemsep}{0pt}\\setlength{\\parskip}{0pt}",
+    "\\setlength{\\topsep}{2pt}\n", sep = "")
+for (nt in notes) cat("\\item ", esc(nt), "\n", sep = "")
+cat("\\end{itemize}\n\\end{footnotesize}\n")
+```

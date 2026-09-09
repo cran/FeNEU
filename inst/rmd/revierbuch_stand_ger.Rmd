@@ -1,0 +1,270 @@
+---
+params:
+  stand_list:       NULL
+  title:            "Revierbuch"
+  has_zuwachs:      false
+  has_bonitaet:     false
+  stand_metadata:   NULL
+  increment_label:  NULL
+  layer_label:      NULL
+title: '`r paste0("\\fontsize{14}{16}\\selectfont Revierbuch ", params$title)`'
+date: ""
+classoption:
+  - a4paper
+geometry:
+  - portrait
+  - "left=1.2cm,right=1.2cm,top=1cm,bottom=1.2cm"
+fontsize: 10pt
+header-includes:
+  # The tables are emitted via cat() from asis chunks, so pandoc never sees a
+  # markdown table and does not auto-load the kableExtra table packages --
+  # declare them here (otherwise: 'Environment longtable undefined').
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \renewcommand{\headrulewidth}{0pt}
+  - \fancyfoot[C]{\thepage}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results = "asis")
+library(kableExtra)
+latex_escape <- function(x) {
+  if (length(x) == 0L) return(x)
+  x <- as.character(x)
+  gsub("([&%$#_])", "\\\\\\1", x)
+}
+```
+
+```{r, message = FALSE, warning = FALSE}
+
+oo <- options(knitr.kable.NA = "–")
+
+has_zuwachs  <- isTRUE(params$has_zuwachs)
+has_bonitaet <- isTRUE(params$has_bonitaet)
+
+for (stand_name in names(params$stand_list)) {
+
+  stand_dat  <- params$stand_list[[stand_name]]
+  stand_area <- unique(stand_dat$stand_area_ha)
+  stand_area_txt <- ifelse(
+    !is.na(stand_area),
+    format(round(stand_area, 4), nsmall = 4),
+    "–"
+  )
+
+  # Stand name header (centered, large bold -- Peter's increment PDF style)
+  cat("\\begin{center}{\\large\\textbf{Waldort: ",
+      latex_escape(stand_name), "}}\\end{center}\n", sep = "")
+  cat("\\noindent\\rule{\\textwidth}{0.4pt}\n\n")
+
+  # Stand metadata (user-provided Bestandsdaten)
+  meta <- NULL
+  if (!is.null(params$stand_metadata)) {
+    meta <- params$stand_metadata[[stand_name]]
+  }
+
+  # Bestockungsgrad from ytable data (computed) or user-provided metadata
+  bgrad <- unique(stand_dat$stand_bestockungsgrad)
+  bgrad <- bgrad[!is.na(bgrad)][1]
+  if (!is.null(meta)) {
+    user_bgrad <- purrr::keep(meta, ~ .x$label == "Bestockungsgrad")
+    if (length(user_bgrad) > 0) bgrad <- as.numeric(user_bgrad[[1]]$value)
+  }
+
+  # Species Profile Index (Pretzsch)
+  spi_val <- if ("spi" %in% names(stand_dat)) {
+    s <- unique(stand_dat$spi); s[!is.na(s)][1]
+  } else NA_real_
+
+  # Shannon diversity index (basal-area-based)
+  p_i <- stand_dat$anteil_pct / 100
+  p_i <- p_i[p_i > 0]
+  shannon_index <- if (length(p_i) > 1) {
+    round(-sum(p_i * log(p_i)), 2)
+  } else {
+    0
+  }
+
+  # Pre-table meta block (flushleft with bold labels -- Peter's style)
+  blocks <- character(0)
+  if (!is.null(params$layer_label)) {
+    blocks <- c(blocks, paste0("\\textbf{Schichten:} ",
+                               latex_escape(params$layer_label)))
+  }
+  blocks <- c(blocks, paste0("\\textbf{Fl\\\"ache:} ", stand_area_txt, " ha"))
+  if (!is.na(bgrad) && !is.null(bgrad)) {
+    blocks <- c(blocks, paste0("\\textbf{Bestockungsgrad:} ",
+                               format(round(bgrad, 2), nsmall = 2)))
+  }
+  blocks <- c(blocks, paste0("\\textbf{Shannon-Index (H'):} ",
+                             format(shannon_index, nsmall = 2)))
+  if (!is.na(spi_val) && !is.null(spi_val)) {
+    blocks <- c(blocks, paste0("\\textbf{SPI (Pretzsch):} ",
+                               format(round(spi_val, 2), nsmall = 2)))
+  }
+  if (!is.null(params$increment_label)) {
+    blocks <- c(blocks, paste0("\\textbf{Zuwachssch\\\"atzung:} ",
+                               latex_escape(params$increment_label)))
+  }
+
+  cat("\\begin{flushleft}\n")
+  cat(paste(blocks, collapse = "\\\\\n"), "\n")
+  cat("\\end{flushleft}\n\n")
+
+  # Build display table
+  has_schicht <- "layer_key" %in% names(stand_dat)
+  has_alter   <- any(!is.na(stand_dat$alter_yr))
+  has_vol     <- any(!is.na(stand_dat$V_per_ha_m3))
+  has_bonit   <- has_bonitaet && any(!is.na(stand_dat$site_index))
+
+  disp <- stand_dat |>
+    dplyr::mutate(
+      species_group = format(species_group, spec_lang = "ger"),
+      d_q_cm        = round(d_q_cm, 1)
+    )
+
+  if (has_schicht) {
+    disp <- disp |>
+      dplyr::mutate(
+        layer_key = c("OS", "US", "VVJ", "UeH")[as.integer(layer_key)]
+      )
+  }
+
+  # Compute absolute values per stand if stand_area is available
+  if (!is.na(stand_area)) {
+    disp <- disp |>
+      dplyr::mutate(
+        V_fl_m3 = ifelse(
+          !is.na(V_per_ha_m3),
+          round(V_per_ha_m3 * anteil_pct / 100 * stand_area, 1),
+          NA_real_
+        ),
+        Zuw_fl_m3 = ifelse(
+          !is.na(zuwachs_m3_ha_yr),
+          round(zuwachs_m3_ha_yr * anteil_pct / 100 * stand_area, 1),
+          NA_real_
+        )
+      )
+  } else {
+    disp <- disp |>
+      dplyr::mutate(V_fl_m3 = NA_real_, Zuw_fl_m3 = NA_real_)
+  }
+
+  disp <- disp |>
+    dplyr::select(
+      Baumart          = species_group,
+      dplyr::any_of(c(Schicht = "layer_key")),
+      dplyr::any_of(c(Alter = "alter_yr")),
+      `Anteil (%)` = anteil_pct,
+      dplyr::any_of(c(`Bonit.` = "site_index")),
+      `Dg (cm)`    = d_q_cm,
+      `N/ha`       = N_per_ha,
+      dplyr::any_of(c(`Vorrat/ha` = "V_per_ha_m3")),
+      dplyr::any_of(c(`Zuw/ha` = "zuwachs_m3_ha_yr")),
+      dplyr::any_of(c(`Vorrat/Fl` = "V_fl_m3")),
+      dplyr::any_of(c(`Zuw/Fl` = "Zuw_fl_m3"))
+    )
+
+  # Drop optional columns if all-NA
+  if (!has_alter)   disp <- dplyr::select(disp, -dplyr::any_of("Alter"))
+  if (!has_bonit)   disp <- dplyr::select(disp, -dplyr::any_of("Bonit."))
+  if (!has_vol) {
+    disp <- dplyr::select(
+      disp,
+      -dplyr::any_of(c("Vorrat/ha", "Vorrat/Fl"))
+    )
+  }
+  if (!has_zuwachs) {
+    disp <- dplyr::select(
+      disp,
+      -dplyr::any_of(c("Zuw/ha", "Zuw/Fl"))
+    )
+  }
+  # Also drop absolute columns if stand_area is NA
+  if (is.na(stand_area)) {
+    disp <- dplyr::select(
+      disp,
+      -dplyr::any_of(c("Vorrat/Fl", "Zuw/Fl"))
+    )
+  }
+
+  # Totals row
+  totals_list <- list(Baumart = "Summe")
+  if (has_schicht) totals_list[["Schicht"]] <- ""
+
+  if (has_alter) totals_list[["Alter"]] <- NA_real_
+  totals_list[["Anteil (%)"]] <- 100L
+
+  if (has_bonit) totals_list[["Bonit."]] <- NA_real_
+
+  # N/ha, V/ha are monospecific: weight by anteil to get mixed-stand totals
+  wt <- stand_dat$anteil_pct / 100
+
+  totals_list[["Dg (cm)"]] <- round(
+    ForestElementsR::d_q(stand_dat$d_q_cm, stand_dat$N_per_ha * wt), 1
+  )
+  totals_list[["N/ha"]] <- round(
+    sum(stand_dat$N_per_ha * wt, na.rm = TRUE), 0
+  )
+
+  if (has_vol) {
+    totals_list[["Vorrat/ha"]] <- round(
+      sum(stand_dat$V_per_ha_m3 * wt, na.rm = TRUE), 0
+    )
+  }
+  if (has_zuwachs) {
+    totals_list[["Zuw/ha"]] <- round(
+      sum(stand_dat$zuwachs_m3_ha_yr * wt, na.rm = TRUE), 1
+    )
+  }
+  if (has_vol && !is.na(stand_area)) {
+    totals_list[["Vorrat/Fl"]] <- round(
+      sum(stand_dat$V_per_ha_m3 * wt, na.rm = TRUE) * stand_area, 1
+    )
+  }
+  if (has_zuwachs && !is.na(stand_area)) {
+    totals_list[["Zuw/Fl"]] <- round(
+      sum(stand_dat$zuwachs_m3_ha_yr * wt, na.rm = TRUE) * stand_area, 1
+    )
+  }
+
+  totals <- tibble::as_tibble(totals_list)
+  totals <- totals |> dplyr::select(dplyr::any_of(names(disp)))
+
+  disp_full <- dplyr::bind_rows(disp, totals)
+
+  # kable rendering
+  tbl <- knitr::kable(disp_full, "latex", booktabs = TRUE, longtable = TRUE,
+                      linesep = "",
+                      format.args = list(scientific = FALSE)) |>
+    kableExtra::kable_styling(font_size = 8,
+                              latex_options = c("hold_position", "repeat_header",
+                                                "scale_down")) |>
+    kableExtra::row_spec(nrow(disp_full), bold = TRUE)
+
+  print(tbl)
+
+  # Post-table metadata (Bestandsform, Nutzungsart, ...)
+  printable_meta <- if (!is.null(meta) && length(meta) > 0) {
+    purrr::keep(meta, ~ .x$label != "Bestockungsgrad")
+  } else list()
+
+  if (length(printable_meta) > 0) {
+    cat("\n\\vspace{2mm}\n")
+    cat("\\noindent\\rule{\\textwidth}{0.4pt}\n\n")
+    cat("\\begin{flushleft}\\small\n")
+    for (entry in printable_meta) {
+      cat("\\textbf{", latex_escape(entry$label), ":} ",
+          latex_escape(entry$value), "\\\\\n", sep = "")
+    }
+    cat("\\end{flushleft}\n")
+  }
+
+  cat("\n\n\\newpage\n\n")
+}
+
+options(oo)
+```

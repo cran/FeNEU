@@ -1,0 +1,1720 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>The FeNEU Package - an Introduction</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+<style type="text/css">
+
+div.csl-bib-body { }
+div.csl-entry {
+clear: both;
+}
+.hanging div.csl-entry {
+margin-left:2em;
+text-indent:-2em;
+}
+div.csl-left-margin {
+min-width:2em;
+float:left;
+}
+div.csl-right-inline {
+margin-left:2em;
+padding-left:1em;
+}
+div.csl-indent {
+margin-left: 2em;
+}
+</style>
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">The FeNEU Package - an Introduction</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#introduction" id="toc-introduction">1 Introduction</a>
+<ul>
+<li><a href="#installation" id="toc-installation">1.1
+Installation</a></li>
+<li><a href="#toolchain" id="toc-toolchain">1.2 Setting up PDF
+output</a></li>
+</ul></li>
+<li><a href="#inventory-types-and-levels-of-data" id="toc-inventory-types-and-levels-of-data">2 Inventory types and levels
+of data</a>
+<ul>
+<li><a href="#fe_inventory" id="toc-fe_inventory">2.1 The fe_inventory
+class</a></li>
+</ul></li>
+<li><a href="#import" id="toc-import">3 Importing Data</a>
+<ul>
+<li><a href="#from-raw-data-to-preprocessed-data" id="toc-from-raw-data-to-preprocessed-data">3.1 From raw data to
+preprocessed data</a></li>
+<li><a href="#from-preprocessed-data-to-an-fe_inventory-object" id="toc-from-preprocessed-data-to-an-fe_inventory-object">3.2 From
+preprocessed data to an fe_inventory object</a></li>
+<li><a href="#a-one-step-shortcut-for-experienced-users" id="toc-a-one-step-shortcut-for-experienced-users">3.3 A one-step
+shortcut for experienced users</a></li>
+</ul></li>
+<li><a href="#status_quo" id="toc-status_quo">4 Status-quo
+Evaluation</a>
+<ul>
+<li><a href="#base-tables" id="toc-base-tables">4.1 Base tables</a></li>
+<li><a href="#structure-tables" id="toc-structure-tables">4.2 Structure
+tables</a></li>
+</ul></li>
+<li><a href="#increment" id="toc-increment">5 Increment Estimation</a>
+<ul>
+<li><a href="#repeated_survey" id="toc-repeated_survey">5.1 Increment
+from a repeated survey</a></li>
+<li><a href="#increment-from-a-single-survey" id="toc-increment-from-a-single-survey">5.2 Increment from a single
+survey</a></li>
+</ul></li>
+<li><a href="#tools" id="toc-tools">6 Useful tools</a>
+<ul>
+<li><a href="#reaching-into-an-inventory" id="toc-reaching-into-an-inventory">6.1 Reaching into an
+inventory</a></li>
+<li><a href="#the-figures-that-describe-an-inventory" id="toc-the-figures-that-describe-an-inventory">6.2 The figures that
+describe an inventory</a></li>
+<li><a href="#a-sheet-for-a-single-inventory-plot" id="toc-a-sheet-for-a-single-inventory-plot">6.3 A sheet for a single
+inventory plot</a></li>
+<li><a href="#writing-a-circle-definition" id="toc-writing-a-circle-definition">6.4 Writing a circle
+definition</a></li>
+<li><a href="#standard-errors-of-your-own-aggregations" id="toc-standard-errors-of-your-own-aggregations">6.5 Standard errors of
+your own aggregations</a></li>
+<li><a href="#a-species-key-for-the-field" id="toc-a-species-key-for-the-field">6.6 A species key for the
+field</a></li>
+<li><a href="#reference-data" id="toc-reference-data">6.7 Reference
+data</a></li>
+</ul></li>
+<li><a href="#acknowledgments" id="toc-acknowledgments">Acknowledgments</a></li>
+<li><a href="#references" id="toc-references">References</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(FeNEU)           <span class="co"># Attach FeNEU</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(ForestElementsR) <span class="co"># FeNEU builds on it, see the note below</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="fu">library</span>(dplyr)           <span class="co"># used in the code examples below</span></span>
+<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">options</span>(<span class="at">fe_spec_lang =</span> <span class="st">&quot;eng&quot;</span>) <span class="co"># display species names in English</span></span></code></pre></div>
+<div id="introduction" class="section level2">
+<h2>1 Introduction</h2>
+<p><em>FeNEU</em> is an R package for evaluating inventory data from
+larger forest management units in order to support professional forest
+planning in practice. The package is designed to cover sample
+inventories as well as stand-wise forest inventories, and it is by
+design open for new data sources and evaluation methods. This first
+version does not claim to be able to do “everything” but provides a
+first reliable collection of central functions and workflows; i.e. a
+solid fundament, on which we can build up further development.
+<em>FeNEU</em> makes extensive use of the objects and functions provided
+by the package <a href="https://CRAN.R-project.org/package=ForestElementsR"><em>ForestElementsR</em></a>
+<span class="citation">(Biber and Toraño Caicoya 2026)</span>. We
+recommend attaching that package alongside <em>FeNEU</em>, as we do in
+the setup above. <em>FeNEU</em> calls it internally either way, but the
+inventory plots themselves are <em>ForestElementsR</em> objects, and the
+methods that display and plot them become available only once the
+package is attached.</p>
+<div style="border: 2px solid #0073e6; padding: 10px; border-radius: 5px;
+background-color: #f9f9f9;">
+<p>Before we proceed, let us put out the same <strong>Important
+Warning</strong> as we do with <em>ForestElementsR</em>: While the
+functions and objects we provide with <em>FeNEU</em> behave exactly as
+described in the documentation, professional training in the fields of
+forestry, forest management, forest science is required to apply them
+correctly and to understand what their output actually means. If you are
+a hobby forester, you are more than welcome to make use of this package,
+but be sure to consult a professional before you draw important
+conclusions from what you get out of your evaluations. We also would
+like to point out another trivial wisdom that, however, seems to be
+ignored on a regular basis: <em>If your data are bad, don’t expect to
+get good results.</em></p>
+</div>
+<p>Building on the object model and functions provided by <a href="https://CRAN.R-project.org/package=ForestElementsR"><em>ForestElementsR</em></a>,
+<em>FeNEU</em> adds the evaluation and reporting layer that larger
+forest inventories require: i) Standardised <a href="#import">import of
+several data formats</a>, ii) <a href="#status_quo">reports of the
+status quo</a> covered by an inventory (called ‘base tables’, ‘structure
+tables’), and iii) <a href="#increment">increment evaluations and
+estimates</a> with different methods. In addition, the package provides
+functions for generating <a href="#support">supporting information</a>,
+e.g. inventory plot information sheets for supporting surveys in the
+field.</p>
+<p>This vignette provides a brief overview of the most important
+concepts of the package, how to obtain it and how to work with it. For
+more detailed information we provide two additional vignettes, namely
+<code>vignette(&quot;data_formats&quot;)</code> and
+<code>vignette(&quot;increment_estimation&quot;)</code>. All examples shown below
+can be run as they stand; they use the example datasets that come with
+<em>FeNEU</em> (see <code>?data_examples_overview</code> for the full
+list).</p>
+<div id="installation" class="section level3">
+<h3>1.1 Installation</h3>
+<p><em>FeNEU</em> itself installs like any other R package:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="st">&quot;FeNEU&quot;</span>)</span></code></pre></div>
+</div>
+<div id="toolchain" class="section level3">
+<h3>1.2 Setting up PDF output</h3>
+<p>Most evaluations in <em>FeNEU</em> end in a formatted PDF report,
+produced by the family of <code>*_pdf()</code> functions. These render
+through <strong>rmarkdown</strong> and <strong>kableExtra</strong> on
+top of two tools that live <em>outside</em> R and are therefore not
+installed along with the package: <strong>pandoc</strong> and a
+<strong>LaTeX</strong> distribution. All other functionality of
+<em>FeNEU</em> works without them; only the <code>*_pdf()</code>
+functions require them.</p>
+<p>To find out where you stand, ask the package:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">diagnose_pdf_toolchain</span>()</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="co">#&gt; PDF toolchain OK: pandoc and LaTeX are available.</span></span></code></pre></div>
+<p>The function reports each component separately and, for anything that
+is missing, prints what to do about it. If a LaTeX distribution is what
+you lack, <code>setup_pdf_toolchain()</code> installs <a href="https://yihui.org/tinytex/">TinyTeX</a> for you (a small LaTeX
+distribution of about 300 MB; any pre-existing TeX Live or MiKTeX
+installation works equally well and is left untouched). Pandoc must be
+installed by hand from <a href="https://pandoc.org/installing.html" class="uri">https://pandoc.org/installing.html</a> — unless you work in
+RStudio, which ships its own copy and needs no further attention.</p>
+<p>Setting this up is a one-time job per machine. Should you forget it,
+the <code>*_pdf()</code> functions stop early with a clear message
+instead of failing later somewhere deep inside the rendering
+toolchain.</p>
+</div>
+</div>
+<div id="inventory-types-and-levels-of-data" class="section level2">
+<h2>2 Inventory types and levels of data</h2>
+<p>Basically <em>FeNEU</em> covers two types of forest inventories,
+i.e. sample inventories and stand-wise inventories. The former are
+typically designed as a grid overlaying the forest area, and a sample
+plot positioned at each gridpoint. Often, the plot locations are
+permanently marked in order to allow for repeated inventories of the
+sample plots. Standwise inventories, in contrast, collect information
+based on the pre-defined stands that together make up the forest area to
+be surveyed. Typically, several samples are taken at different positions
+in the stand without keeping their exact location. Usually, the
+measurements are less detailed compared to sample inventories. While
+both inventory types can be done with different methods, sample
+inventories do very often use a concentric circle plot design while
+stand-wise inventories often use angle count samples. Thus, the current
+version of <em>FeNEU</em> supports sample inventories with a concentric
+circle design and stand-wise inventories based on angle count sampling.
+This is, however, not a permanent restriction. In the contrary,
+<em>FeNEU</em> is technically not limited to these concepts, and more
+will be added if required.</p>
+<p>At the input side <em>FeNEU</em> can deal with <em>raw data</em> and
+<em>preprocessed data</em>. Raw data are data in the shape as they have
+been collected in the field. Typically, at that stage, they are not yet
+in a format that is ideal for further evaluations, and they have
+undergone no or only sparse plausibility checks. <em>FeNEU</em> provides
+functions that read different raw data formats and transform them into
+corresponding preprocessed formats.</p>
+<p>Preprocessed data, however, do not have to originate from
+<em>FeNEU</em>. The preprocessed formats are defined formats in their
+own right, and <em>FeNEU</em> reads them whichever way they were
+produced — by its own raw data import, by another program, or by an
+inventory service provider who delivers data in that shape already. This
+is why the import is deliberately split into two steps that can be used
+together or separately.</p>
+<p>Whichever way the data enter, they all lead to the same destination:
+an object of the class <a href="#fe_inventory"><em>fe_inventory</em></a>. This is the uniform
+representation in which <em>FeNEU</em> holds inventory data internally,
+no matter which inventory type, survey method or input format they came
+from. Everything the package does afterwards works on that object rather
+than on the original files. The consequence is a useful guarantee: once
+the data have been successfully converted into an <em>fe_inventory</em>
+object, all subsequent evaluations are technically sound. Whether they
+are also <em>sensible</em> remains, as always, a question of the data
+and of professional judgement.</p>
+<p>Currently, <em>FeNEU</em> supports three raw data formats and two
+preprocessed formats:</p>
+<ul>
+<li><strong>Sample inventories with concentric circles.</strong> Two raw
+data formats, called “Format 1” and “Format 2”. Both are converted into
+the same preprocessed format, which we call the <strong>BaySF style
+format</strong>, because it follows the conventions of the Bavarian
+State Forest Enterprise.</li>
+<li><strong>Stand-wise inventories with angle-count sampling.</strong>
+One raw data format, called “Format 1” as well, and one preprocessed
+format. Both follow the <strong>Silvarith style format</strong>, named
+after the software whose conventions it borrows.</li>
+</ul>
+<p>Note that the format numbers are assigned <em>within</em> an
+inventory type: the “Format 1” of the sample inventories has nothing to
+do with the “Format 1” of the stand-wise ones. The complete,
+column-level definition of all five formats — which columns are
+mandatory, which are optional, and what they mean — is the subject of
+the vignette <a href="data_formats.html">Data Formats</a>.</p>
+<div id="fe_inventory" class="section level3">
+<h3>2.1 The fe_inventory class</h3>
+<p>Before we get into the workflows, we should mention the central
+object class in <em>FeNEU</em>, the S3 class <em>fe_inventory</em>. This
+class defines how a forest inventory is represented in <em>FeNEU</em>.
+Thus, the first and most crucial step when working with <em>FeNEU</em>
+is to transform the raw data into an <em>fe_inventory</em> object. After
+this has been accomplished, i.e. an <em>fe_inventory</em> object has
+been successfully constructed, it is guaranteed that all subsequent
+evaluations will (technically) work. In essence, an
+<em>fe_inventory</em> object is a tibble where every row represents an
+inventory unit. Let us have a look at an example <em>fe_inventory</em>
+object (<code>data_ex3_sample_fe_inventory</code>) that comes with the
+package <em>FeNEU</em>. Note that this example comprises only ten
+inventory units (plots) for quick demonstration purposes, while real
+inventories often come with several hundred up to several thousand
+plots. Also note that the example <em>data_ex3_sample_fe_inventory</em>
+is realistic, but not real. Do not expect to find anything related to
+the dummy geocoordinates stored in this object.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>data_ex3_sample_fe_inventory <span class="sc">|&gt;</span> <span class="fu">is_fe_inventory</span>()</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>data_ex3_sample_fe_inventory</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 3</span></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a><span class="co">#&gt;    plot_id              plot       area_rep_ha</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a><span class="co">#&gt;  * &lt;chr&gt;                &lt;list&gt;           &lt;dbl&gt;</span></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a><span class="co">#&gt;  1 900000002_1_99900002 &lt;f_ccrcl_&gt;        2.97</span></span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a><span class="co">#&gt;  2 900000015_1_99900015 &lt;f_ccrcl_&gt;        5.14</span></span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a><span class="co">#&gt;  3 900000020_1_99900020 &lt;f_ccrcl_&gt;        4.43</span></span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a><span class="co">#&gt;  4 900000029_1_99900029 &lt;f_ccrcl_&gt;        4.69</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a><span class="co">#&gt;  5 900000043_1_99900043 &lt;f_ccrcl_&gt;        3.97</span></span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a><span class="co">#&gt;  6 900000046_1_99900046 &lt;f_ccrcl_&gt;        7.05</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a><span class="co">#&gt;  7 900000061_1_99900061 &lt;f_ccrcl_&gt;        6.98</span></span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a><span class="co">#&gt;  8 900000075_1_99900075 &lt;f_ccrcl_&gt;        3.08</span></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a><span class="co">#&gt;  9 900000086_1_99900086 &lt;f_ccrcl_&gt;        3.80</span></span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; 10 900000100_1_99900100 &lt;f_ccrcl_&gt;        4.63</span></span></code></pre></div>
+<p>The object has three columns, the central column <em>plot</em> being
+the most important, because it contains the inventory units themselves.
+Each element of this column is an object of <em>ForestElementsR</em>’s
+<em>fe_stand</em> family. The column <em>plot_id</em> provides a unique
+id for every inventory unit, and the column <em>area_rep_ha</em> shows
+how much forest area (in hectares) is represented by each inventory
+unit. Let us check out the first inventory unit:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>inv_unit <span class="ot">&lt;-</span> data_ex3_sample_fe_inventory<span class="sc">$</span>plot[[<span class="dv">1</span>]]</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">class</span>(inv_unit)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fe_ccircle_spatial&quot; &quot;fe_stand_spatial&quot;   &quot;fe_stand&quot;</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a><span class="fu">names</span>(inv_unit)</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co">#&gt; [1] &quot;stand_id&quot;          &quot;time_yr&quot;           &quot;circle_definition&quot;</span></span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="co">#&gt; [4] &quot;tree_positions&quot;    &quot;trees&quot;             &quot;small_trees&quot;</span></span></code></pre></div>
+<p>An inventory unit is itself a list of slots: an identifier, the
+survey year, the geometry of the sample circles, the positions of the
+trees, and the two tree tables. The heart of it is <code>trees</code>,
+which holds one row per tree:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>inv_unit<span class="sc">$</span>trees</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="co">#&gt; # A tibble: 14 × 14</span></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt;    tree_id species_id    layer_key time_yr age_yr dbh_cm height_m</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;   &lt;bavrn_state&gt;     &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="co">#&gt;  1 3_1     Scots pine            4    2020     91   36.5     25.5</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a><span class="co">#&gt;  2 4_1     Norway spruce         1    2020     53   36.5     NA  </span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co">#&gt;  3 4_2     Norway spruce         1    2020     53   31.5     NA  </span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="co">#&gt;  4 4_3     Norway spruce         1    2020     53   23.5     NA  </span></span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="co">#&gt;  5 4_4     Norway spruce         1    2020     53   35.5     NA  </span></span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a><span class="co">#&gt;  6 4_5     Norway spruce         1    2020     53   13.5     NA  </span></span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a><span class="co">#&gt;  7 4_6     Norway spruce         1    2020     53   30.5     NA  </span></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a><span class="co">#&gt;  8 4_7     Norway spruce         1    2020     53   31.5     NA  </span></span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt;  9 4_8     Norway spruce         1    2020     53   24.5     NA  </span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="co">#&gt; 10 4_9     Norway spruce         1    2020     53   31.5     NA  </span></span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; 11 4_10    Norway spruce         1    2020     53   20.5     NA  </span></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a><span class="co">#&gt; 12 4_11    Norway spruce         1    2020     53   33.5     NA  </span></span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a><span class="co">#&gt; 13 4_12    Norway spruce         1    2020     53   31.5     NA  </span></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a><span class="co">#&gt; 14 4_13    Norway spruce         1    2020     53   20.5     NA  </span></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a><span class="co">#&gt; # ℹ 7 more variables: crown_base_height_m &lt;dbl&gt;, crown_radius_m &lt;dbl&gt;,</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a><span class="co">#&gt; #   removal &lt;lgl&gt;, ingrowth &lt;lgl&gt;, n_rep_ha &lt;dbl&gt;, tree_count &lt;dbl&gt;,</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a><span class="co">#&gt; #   h_m_tree &lt;lgl&gt;</span></span></code></pre></div>
+<p>We can also obtain a graphical representation of the inventory plot.
+The <code>dbh_scale</code> argument draws the stems oversized, which
+makes them easier to see on a small map:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">plot</span>(inv_unit, <span class="at">dbh_scale =</span> <span class="dv">4</span>)</span></code></pre></div>
+<p><img role="img" aria-label="Map of an inventory plot with concentric circles" src="data:image/png;base64,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" alt="Map of an inventory plot with concentric circles" /></p>
+<p>Two details of this map are worth knowing. The stems are shown in
+their true positions, but only trees from the second circle outwards
+carry coordinates at all — for the innermost circle, positions are not
+recorded. And that innermost circle is not concentric with the other
+two: it sits five metres north of the inventory point. That is the field
+convention these data follow, not a defect of the plot.</p>
+<p>Evidently, this inventory unit is an object of class
+<em>fe_ccircle_spatial</em> which represents a sample inventory plot
+with a concentric circle design. This class is a child of
+<em>fe_stand_spatial</em> which in turn is a child of <em>fe_stand</em>
+(see the documentation of <em>ForestElementsR</em> for details about
+these classes). While it is not required that all elements of an
+<em>fe_inventory</em> object’s plot column have exactly the same class,
+as long as they are children of <em>fe_stand</em>, such a mix would be
+quite unusual and is not recommended. Some evaluations provided by
+<em>FeNEU</em> are only possible with special subtypes of
+<em>fe_inventory</em> objects. E.g. increment calculations from two
+repeated inventories are currently only possible when both inventories
+exclusively contain plots with a concentric circle design
+(i.e. <em>fe_ccircle_spatial</em> objects). In the following section, we
+will demonstrate how field data can be transformed into an
+<em>fe_inventory</em> object.</p>
+</div>
+</div>
+<div id="import" class="section level2">
+<h2>3 Importing Data</h2>
+<p>Field survey exports rarely come in the exact shape an
+<em>fe_inventory</em> object needs. The import therefore proceeds in two
+steps, each with its own function per inventory type. The first step,
+<em>raw to pre</em>, standardises the format; the second, <em>pre to
+fe_inventory</em>, builds the object. The following sketch shows how the
+pieces fit together:</p>
+<pre><code>  stage          sample inventory, concentric circles    stand-wise inventory, relascope
+  -------------------------------------------------------------------------------------
+  raw            Format 1            Format 2                 Format 1
+                     |                   |                        |
+                     v                   v                        v
+                    import_sample_concentric_            import_standwise_relascope_
+          format1_raw_to_pre() format2_raw_to_pre()      format1_raw_to_pre()
+                     |                   |                        |
+                     v                   v                        v
+  pre             --- BaySF style format ---             Silvarith style format
+                  (five tab-delimited files)             (one file, WZP_Daten.txt)
+                     |                                            |
+                    import_sample_concentric_            import_standwise_relascope_
+                    pre_to_fe_inventory()                pre_to_fe_inventory()
+                     |                                            |  
+                     v                                            v
+  fe_inventory   ------------------  fe_inventory  ---------------------</code></pre>
+<p>Read the sketch from top to bottom, but note that you may enter it at
+either level. If your data are already in one of the preprocessed
+formats, you skip the upper half entirely and start at <em>pre</em>.</p>
+<p>The example datasets that come with <em>FeNEU</em> are placed in
+exactly this scheme. Each of them covers the stages that are useful for
+demonstrating it, which is why not every set exists at every stage:</p>
+<table>
+<colgroup>
+<col width="9%" />
+<col width="30%" />
+<col width="9%" />
+<col width="9%" />
+<col width="26%" />
+<col width="13%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Set</th>
+<th>Inventory type</th>
+<th>raw</th>
+<th>pre</th>
+<th>fe_inventory</th>
+<th>Scope</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ex1</td>
+<td>sample, concentric</td>
+<td>Format 1</td>
+<td></td>
+<td></td>
+<td>10 points</td>
+</tr>
+<tr class="even">
+<td>ex2</td>
+<td>sample, concentric</td>
+<td>Format 2</td>
+<td></td>
+<td></td>
+<td>10 points</td>
+</tr>
+<tr class="odd">
+<td>ex3</td>
+<td>sample, concentric</td>
+<td></td>
+<td>yes</td>
+<td>yes</td>
+<td>10 points, plus an earlier survey</td>
+</tr>
+<tr class="even">
+<td>ex4</td>
+<td>sample, concentric</td>
+<td></td>
+<td>yes</td>
+<td>yes</td>
+<td>100 points, plus an earlier survey</td>
+</tr>
+<tr class="odd">
+<td>ex5</td>
+<td>sample, concentric</td>
+<td></td>
+<td>yes</td>
+<td>yes</td>
+<td>10 simulated points, plus an earlier survey</td>
+</tr>
+<tr class="even">
+<td>ex6</td>
+<td>stand-wise, relascope</td>
+<td>Format 1</td>
+<td>yes</td>
+<td>yes</td>
+<td>2 stands, 17 points</td>
+</tr>
+<tr class="odd">
+<td>ex7</td>
+<td>stand-wise, relascope</td>
+<td></td>
+<td>yes</td>
+<td>yes</td>
+<td>2 stands, 15 points</td>
+</tr>
+</tbody>
+</table>
+<p>The sets that carry an earlier survey (ex3, ex4, ex5) are the ones we
+use for increment estimation from repeated inventories later on. Data at
+the <em>fe_inventory</em> stage are ready-made R objects, named like
+<code>data_ex3_sample_fe_inventory</code>; data at the <em>raw</em> and
+<em>pre</em> stages are text files, and you obtain the directory holding
+them with <code>system.file()</code>, as the examples below show.
+<code>?data_examples_overview</code> describes every set in detail, down
+to the individual file.</p>
+<div id="from-raw-data-to-preprocessed-data" class="section level3">
+<h3>3.1 From raw data to preprocessed data</h3>
+<p>The <code>*_raw_to_pre()</code> functions read the field data as
+tab-delimited text files, check them, and write the preprocessed files
+into a directory of your choosing. They are called for that side effect,
+and return a short report telling you how it went.</p>
+<p>Let us convert the raw stand-wise example (ex6) that comes with the
+package:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>raw_dir <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex6_standwise_raw&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">dir</span>(raw_dir)</span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;EingabedatenGesamt.txt&quot; &quot;Inventuraufnahmen.txt&quot;</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>pre_dir <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;ex6_pre&quot;</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>report <span class="ot">&lt;-</span> <span class="fu">import_standwise_relascope_format1_raw_to_pre</span>(</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  <span class="at">input_path =</span> raw_dir,</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  <span class="at">output_dir =</span> pre_dir</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>)</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>report<span class="sc">$</span>ok</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a><span class="fu">dir</span>(pre_dir)</span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;WZP_Daten.txt&quot;</span></span></code></pre></div>
+<p>For a sample inventory it takes a little more, because the geometry
+of the concentric circles is not part of the field data — it belongs to
+the inventory design. It has to be supplied, as a pair of vectors giving
+the lower DBH threshold and the radius of each circle (as we do below).
+Alternatively, it can also be provided as a text file. This option is
+especially useful when differing circle definitions were applied
+throughout an inventory (see documentation of the import functions). Get
+it wrong and every figure is wrong with it, since these radii are what
+the representation factors of the sampled trees are computed from. The
+values used below mirror the design of inventory example ex1;
+<code>?data_examples_overview</code> lists them for the raw example
+sets. Here is ex1, in raw Format 1:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>raw_dir_ex1 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex1_sample_raw&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">dir</span>(raw_dir_ex1)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Baumschicht.txt&quot; &quot;Inv_punkt.txt&quot;   &quot;Verjuengung.txt&quot;</span></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>pre_dir_ex1 <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;ex1_pre&quot;</span>)</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>report_ex1 <span class="ot">&lt;-</span> <span class="fu">import_sample_concentric_format1_raw_to_pre</span>(</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  <span class="at">input_path           =</span> raw_dir_ex1,</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="at">output_dir           =</span> pre_dir_ex1,</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  <span class="at">small_trees_filename =</span> <span class="st">&quot;Verjuengung&quot;</span>, <span class="co"># optional</span></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">dbh_cm_from          =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">12</span>, <span class="dv">30</span>, <span class="dv">48</span>),</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="at">radiuses_m           =</span> <span class="fu">c</span>(<span class="fl">2.82</span>, <span class="fl">5.64</span>, <span class="fl">11.28</span>, <span class="fl">17.84</span>),</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>  <span class="at">coord_sys            =</span> <span class="st">&quot;gk4&quot;</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="at">species_guess        =</span> <span class="cn">TRUE</span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>)</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a></span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>report_ex1<span class="sc">$</span>ok</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="fu">dir</span>(pre_dir_ex1)</span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fcbestku.txt&quot; &quot;fdinvba.txt&quot;  &quot;fdinvbhd.txt&quot; &quot;fdinvkrs.txt&quot; &quot;fdvikrs.txt&quot;</span></span></code></pre></div>
+<p>Note what the function has to say about these data:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>report_ex1<span class="sc">$</span>warnings</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Stand-age data are missing or incomplete. Analyses that need the (stand) age are therefore not possible (see the function documentation).&quot;            </span></span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a><span class="co">#&gt; [2] &quot;4 species abbreviation(s) were matched only by fuzzy/approximate rules and should be checked manually (see report$species_mapping, tier == &#39;review&#39;).&quot;</span></span></code></pre></div>
+<p>Neither remark is fatal, and both are worth having. The first tells
+us that we will not be able to run some age-based evaluation on this
+inventory, especially increment estimates with yield tables or single
+tree growth functions (see vignette <a href="increment_estimation.html">Increment Estimation</a>). Age
+information might be incomplete due to errors, but also due to
+uneven-aged stands where an age is not defined. The second is a
+consequence of <code>species_guess = TRUE</code>, which lets the import
+resolve species abbreviations it does not know verbatim: four of them
+were matched only by approximate rules, and
+<code>report_ex1$species_mapping</code> shows which, so that the guesses
+can be checked rather than trusted. We recommend to use the species
+coding supported by the data format of choice instead of species namme
+abbreviations that have to be guessed afterwards. The report is a list
+with the elements <code>ok</code>, <code>errors</code>,
+<code>warnings</code> and <code>paths</code>. It is worth reading rather
+than discarding: <code>ok</code> is <code>FALSE</code> whenever the data
+could not be converted, and <code>warnings</code> is where the functions
+tell you what they had to do with your data in order to proceed.</p>
+<p>Three properties of this step deserve mention, because they are what
+makes the difference between an import that works on real-world data and
+one that only works on tidy data:</p>
+<p><strong>Plausibility checks.</strong> The raw data import is the
+place where the data are scrutinised, and it distinguishes carefully
+between two kinds of problem. A defect that invalidates a whole
+inventory point — a duplicated plot identifier, or a plot whose centre
+coordinate is missing — stops the import immediately and with a clear
+message, because there is no defensible way to carry on. A defect
+confined to a single tree — a tree above the innermost circle that
+carries no position, a tree with only half a position, a living tree
+without a stand layer — leads to that one tree being excluded or its
+position dropped, while the rest of the plot survives. Whenever this
+happens, the affected trees are named individually in the warnings, by
+tree number where one exists and by DBH otherwise, so that you can look
+them up in your own data. What <em>FeNEU</em> never does is guess: the
+package does not invent a plausible value to keep going quietly.</p>
+<p><strong>Encoding robustness.</strong> Field data arrive in whatever
+encoding the exporting program happened to use, and the difference
+between UTF-8 and ISO-8859-1 usually shows up in exactly the places that
+matter — species abbreviations and column names carrying umlauts. Every
+import function takes an <code>encoding</code> argument that defaults to
+<code>&quot;auto&quot;</code>, and the species and header matching additionally
+recognises the characteristic garbling that results when UTF-8 text is
+read as Latin-1, and repairs it.</p>
+<p><strong>Decimal separator robustness.</strong> German-language
+exports write decimals with a comma. Reading such a file with automatic
+type detection silently turns a DBH of <code>23,4</code> into
+<code>234</code>, which is a data error no plausibility check further
+downstream can recognise as one. <em>FeNEU</em> therefore reads every
+input file as plain text and converts only those columns it actually
+uses, tolerant of both the comma and the point.</p>
+</div>
+<div id="from-preprocessed-data-to-an-fe_inventory-object" class="section level3">
+<h3>3.2 From preprocessed data to an fe_inventory object</h3>
+<p>The second step reads the preprocessed files (tab-delimited text) and
+assembles the <em>fe_inventory</em> object, which includes validating
+it. Continuing with the files we have just written:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>inv_ex6 <span class="ot">&lt;-</span> <span class="fu">import_standwise_relascope_pre_to_fe_inventory</span>(pre_dir)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a></span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>inv_ex6</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="co">#&gt; # A tibble: 17 × 3</span></span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a><span class="co">#&gt;    plot_id        plot       area_rep_ha</span></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co">#&gt;  * &lt;chr&gt;          &lt;list&gt;           &lt;dbl&gt;</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a><span class="co">#&gt;  1 1_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a><span class="co">#&gt;  2 1_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a><span class="co">#&gt;  3 2_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a><span class="co">#&gt;  4 2_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a><span class="co">#&gt;  5 3_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a><span class="co">#&gt;  6 3_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a><span class="co">#&gt;  7 4_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a><span class="co">#&gt;  8 4_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a><span class="co">#&gt;  9 5_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a><span class="co">#&gt; 10 5_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a><span class="co">#&gt; 11 6_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a><span class="co">#&gt; 12 6_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a><span class="co">#&gt; 13 7_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a><span class="co">#&gt; 14 7_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a><span class="co">#&gt; 15 8_7- 2- 0- - 0 &lt;fe_stand&gt;       0.416</span></span>
+<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a><span class="co">#&gt; 16 8_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span>
+<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a><span class="co">#&gt; 17 9_7- 5- 0- - 0 &lt;fe_stand&gt;       0.546</span></span></code></pre></div>
+<p>For a sample inventory it works exactly the same way. The package
+ships the preprocessed files of example ex3 in BaySF style format:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>pre_path <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex3_sample_pre&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="fu">dir</span>(pre_path)</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fcbestku.txt&quot; &quot;fdinvba.txt&quot;  &quot;fdinvbhd.txt&quot; &quot;fdinvkrs.txt&quot; &quot;fdvikrs.txt&quot;</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a>fe_inv <span class="ot">&lt;-</span> <span class="fu">import_sample_concentric_pre_to_fe_inventory</span>(pre_path)</span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>fe_inv</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 3</span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt;    plot_id              plot       area_rep_ha</span></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt;  * &lt;chr&gt;                &lt;list&gt;           &lt;dbl&gt;</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt;  1 900000002_1_99900002 &lt;f_ccrcl_&gt;        2.97</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt;  2 900000015_1_99900015 &lt;f_ccrcl_&gt;        5.14</span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt;  3 900000020_1_99900020 &lt;f_ccrcl_&gt;        4.43</span></span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt;  4 900000029_1_99900029 &lt;f_ccrcl_&gt;        4.69</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt;  5 900000043_1_99900043 &lt;f_ccrcl_&gt;        3.97</span></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt;  6 900000046_1_99900046 &lt;f_ccrcl_&gt;        7.05</span></span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt;  7 900000061_1_99900061 &lt;f_ccrcl_&gt;        6.98</span></span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt;  8 900000075_1_99900075 &lt;f_ccrcl_&gt;        3.08</span></span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt;  9 900000086_1_99900086 &lt;f_ccrcl_&gt;        3.80</span></span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt; 10 900000100_1_99900100 &lt;f_ccrcl_&gt;        4.63</span></span></code></pre></div>
+<p>The result is the very object that <em>FeNEU</em> also ships
+ready-made as <code>data_ex3_sample_fe_inventory</code>, and which we
+reuse in the workflows below:</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(fe_inv, data_ex3_sample_fe_inventory))</span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>Note that we did not have to tell the function anything about the
+coordinate reference system. Preprocessed data in BaySF style format
+declare their own coordinate system, and <em>FeNEU</em> uses that
+declaration. Should your files not carry it, the function will ask you
+for it explicitly through its <code>coord_sys</code> argument rather
+than assuming one — an assumption about coordinates is a particularly
+expensive way to be wrong.</p>
+</div>
+<div id="a-one-step-shortcut-for-experienced-users" class="section level3">
+<h3>3.3 A one-step shortcut for experienced users</h3>
+<p>For those cases in which the inventory type is not known until run
+time — a graphical user interface built on top of <em>FeNEU</em> is the
+typical example — the package also offers
+<code>read_and_convert_data()</code>. It covers the <em>pre to
+fe_inventory</em> step for all inventory types and dispatches on its
+<code>inventory_type</code> argument:</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a>fe_inv_2 <span class="ot">&lt;-</span> <span class="fu">read_and_convert_data</span>(pre_path, <span class="at">inventory_type =</span> <span class="st">&quot;sample_concentric&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(fe_inv_2, fe_inv))</span>
+<span id="cb15-4"><a href="#cb15-4" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>This is an expert function, and the two-step route shown above
+remains the recommended one for everyday work: it names the inventory
+type in the function you call, which makes both your script and its
+error messages easier to read.</p>
+</div>
+</div>
+<div id="status_quo" class="section level2">
+<h2>4 Status-quo Evaluation</h2>
+<p>A status-quo evaluation describes what an inventory currently holds:
+stem number, basal area and standing volume, broken down by species
+group and by size or age. <em>FeNEU</em> offers two such evaluations,
+<em>base tables</em> and <em>structure tables</em>, and produces each of
+them in three separate steps:</p>
+<pre><code>  aggregation          restructuring             rendering
+  base_table_*()   -&gt;  output_base_table()  -&gt;   output_base_table_pdf()
+  structure_table_*()  output_structure_table()  output_structure_table_pdf()
+
+  the numbers          the table layout          the formatted report
+  (R objects)          (an R data frame)         (a PDF file)</code></pre>
+<p>This separation is deliberate, and it matters more than it may look.
+The figures are computed first and handed back as plain R objects, so
+that you can work with them further — check them, combine them, feed
+them into your own graphics or into a report of your own making. Nothing
+forces you through the PDF, and the intermediate table stays
+language-neutral; only the last step commits to a language and a layout.
+If all you want is a number, you never have to render anything.</p>
+<p>All evaluation functions work on a flat tree table rather than on the
+nested <code>fe_inventory</code> object. Preparing that table is the one
+step every evaluation in the rest of this vignette shares:</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="co"># The h_q fallback warning is expected here: a few species x layer groups in the</span></span>
+<span id="cb17-2"><a href="#cb17-2" tabindex="-1"></a><span class="co"># example data carry no measured height, so their mean height is modelled.</span></span>
+<span id="cb17-3"><a href="#cb17-3" tabindex="-1"></a>trees_with_heights <span class="ot">&lt;-</span> <span class="fu">suppressWarnings</span>(</span>
+<span id="cb17-4"><a href="#cb17-4" tabindex="-1"></a>  data_ex3_sample_fe_inventory <span class="sc">|&gt;</span></span>
+<span id="cb17-5"><a href="#cb17-5" tabindex="-1"></a>    <span class="fu">pull_trees</span>() <span class="sc">|&gt;</span></span>
+<span id="cb17-6"><a href="#cb17-6" tabindex="-1"></a>    <span class="fu">height_complete_inventory</span>()</span>
+<span id="cb17-7"><a href="#cb17-7" tabindex="-1"></a>)</span>
+<span id="cb17-8"><a href="#cb17-8" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" tabindex="-1"></a>trees <span class="ot">&lt;-</span> data_ex3_sample_fe_inventory <span class="sc">|&gt;</span></span>
+<span id="cb17-10"><a href="#cb17-10" tabindex="-1"></a>  <span class="fu">fill_heights_back</span>(trees_with_heights) <span class="sc">|&gt;</span></span>
+<span id="cb17-11"><a href="#cb17-11" tabindex="-1"></a>  <span class="fu">pull_trees</span>() <span class="sc">|&gt;</span></span>
+<span id="cb17-12"><a href="#cb17-12" tabindex="-1"></a>  <span class="fu">trees_add_essentials</span>(<span class="at">method =</span> <span class="st">&quot;BaySF&quot;</span>)</span>
+<span id="cb17-13"><a href="#cb17-13" tabindex="-1"></a><span class="co">#&gt;   |                                                                              |                                                                      |   0%  |                                                                              |=========                                                             |  12%  |                                                                              |==================                                                    |  25%  |                                                                              |==========================                                            |  38%  |                                                                              |===================================                                   |  50%  |                                                                              |============================================                          |  62%  |                                                                              |====================================================                  |  75%  |                                                                              |=============================================================         |  88%  |                                                                              |======================================================================| 100%</span></span>
+<span id="cb17-14"><a href="#cb17-14" tabindex="-1"></a></span>
+<span id="cb17-15"><a href="#cb17-15" tabindex="-1"></a>trees</span>
+<span id="cb17-16"><a href="#cb17-16" tabindex="-1"></a><span class="co">#&gt; # A tibble: 139 × 23</span></span>
+<span id="cb17-17"><a href="#cb17-17" tabindex="-1"></a><span class="co">#&gt;    plot_id     area_rep_ha layer_key species_id    species_group tree_id time_yr</span></span>
+<span id="cb17-18"><a href="#cb17-18" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;             &lt;dbl&gt;     &lt;dbl&gt; &lt;bavrn_state&gt; &lt;bav_st_shrt&gt; &lt;chr&gt;     &lt;dbl&gt;</span></span>
+<span id="cb17-19"><a href="#cb17-19" tabindex="-1"></a><span class="co">#&gt;  1 900000002_…        2.97         4 Scots pine    pine          3_1        2020</span></span>
+<span id="cb17-20"><a href="#cb17-20" tabindex="-1"></a><span class="co">#&gt;  2 900000002_…        2.97         1 Norway spruce spruce        4_1        2020</span></span>
+<span id="cb17-21"><a href="#cb17-21" tabindex="-1"></a><span class="co">#&gt;  3 900000002_…        2.97         1 Norway spruce spruce        4_2        2020</span></span>
+<span id="cb17-22"><a href="#cb17-22" tabindex="-1"></a><span class="co">#&gt;  4 900000002_…        2.97         1 Norway spruce spruce        4_3        2020</span></span>
+<span id="cb17-23"><a href="#cb17-23" tabindex="-1"></a><span class="co">#&gt;  5 900000002_…        2.97         1 Norway spruce spruce        4_4        2020</span></span>
+<span id="cb17-24"><a href="#cb17-24" tabindex="-1"></a><span class="co">#&gt;  6 900000002_…        2.97         1 Norway spruce spruce        4_5        2020</span></span>
+<span id="cb17-25"><a href="#cb17-25" tabindex="-1"></a><span class="co">#&gt;  7 900000002_…        2.97         1 Norway spruce spruce        4_6        2020</span></span>
+<span id="cb17-26"><a href="#cb17-26" tabindex="-1"></a><span class="co">#&gt;  8 900000002_…        2.97         1 Norway spruce spruce        4_7        2020</span></span>
+<span id="cb17-27"><a href="#cb17-27" tabindex="-1"></a><span class="co">#&gt;  9 900000002_…        2.97         1 Norway spruce spruce        4_8        2020</span></span>
+<span id="cb17-28"><a href="#cb17-28" tabindex="-1"></a><span class="co">#&gt; 10 900000002_…        2.97         1 Norway spruce spruce        4_9        2020</span></span>
+<span id="cb17-29"><a href="#cb17-29" tabindex="-1"></a><span class="co">#&gt; # ℹ 129 more rows</span></span>
+<span id="cb17-30"><a href="#cb17-30" tabindex="-1"></a><span class="co">#&gt; # ℹ 16 more variables: age_yr &lt;dbl&gt;, age_class &lt;ord&gt;, dbh_cm &lt;dbl&gt;,</span></span>
+<span id="cb17-31"><a href="#cb17-31" tabindex="-1"></a><span class="co">#&gt; #   dbh_class &lt;ord&gt;, height_m &lt;dbl&gt;, crown_base_height_m &lt;dbl&gt;,</span></span>
+<span id="cb17-32"><a href="#cb17-32" tabindex="-1"></a><span class="co">#&gt; #   crown_radius_m &lt;dbl&gt;, removal &lt;lgl&gt;, ingrowth &lt;lgl&gt;, n_rep_ha &lt;dbl&gt;,</span></span>
+<span id="cb17-33"><a href="#cb17-33" tabindex="-1"></a><span class="co">#&gt; #   h_m_tree &lt;lgl&gt;, dbh_trshld &lt;dbl&gt;, g_m2 &lt;dbl&gt;, v_m3 &lt;dbl&gt;, v_hub_m3 &lt;dbl&gt;,</span></span>
+<span id="cb17-34"><a href="#cb17-34" tabindex="-1"></a><span class="co">#&gt; #   standing_area_m2 &lt;dbl&gt;</span></span></code></pre></div>
+<p>Three things happen here. <code>pull_trees()</code> unnests the
+inventory into one row per tree.
+<code>height_complete_inventory()</code> estimates the heights of all
+trees that were not measured — in a typical inventory that is the large
+majority — and <code>fill_heights_back()</code> writes those estimates
+into the inventory object, so that the second <code>pull_trees()</code>
+delivers a tree table whose heights are complete. Finally
+<code>trees_add_essentials()</code> derives what the evaluations need:
+basal area, single-tree volume, species groups and size classes.</p>
+<p>The detour through <code>fill_heights_back()</code> and a second
+<code>pull_trees()</code> is worth keeping to. It leaves the heights in
+the inventory object rather than in a loose table, and it is the form
+the rest of the package expects.</p>
+<div id="base-tables" class="section level3">
+<h3>4.1 Base tables</h3>
+<p>A base table breaks the inventory down by <strong>species
+group</strong> and by <strong>one class variable</strong>, for which
+there is a choice: <strong>age classes</strong> or <strong>mean diameter
+classes</strong>. Which of the two to use is not a matter of taste. Age
+classes are the traditional grouping and work well as long as stands are
+reasonably even aged, so that a single stand age is a meaningful
+statement. In an enterprise that consists largely of structurally rich,
+uneven-aged stands, it is not: there is no age one could sensibly assign
+to such a stand. Mean diameter classes describe those forests better,
+because a diameter can always be measured. This is why <em>FeNEU</em>
+offers both throughout.</p>
+<p>The second choice concerns the <strong>tree cohort</strong>: the
+whole inventory collective, or the main stand only. This distinction
+runs through the entire package:</p>
+<ul>
+<li><strong>All layers</strong> (<code>base_table_age_class()</code>,
+<code>base_table_d_q_class()</code>) covers every living tree the
+inventory recorded, understorey and advance regeneration included. It
+answers what is standing there.</li>
+<li><strong>Main stand</strong>
+(<code>base_table_age_class_main_stand()</code>,
+<code>base_table_d_q_class_main_stand()</code>) restricts the evaluation
+to the main stand layer. This is typically the most important cohort of
+trees that carries the stand.</li>
+</ul>
+<p>The difference is not merely one of a filter. If per-hectare figures
+of species, age classes and other cohorts are desired, it is necessary
+to estimate the area share covered by the cohort of interest. This is
+only meaningful for the main stand. The all-layers tables therefore
+report absolute figures but no per-hectare values, while the main stand
+tables report both. Here is the main stand of ex3 by age class:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>bt <span class="ot">&lt;-</span> <span class="fu">base_table_age_class_main_stand</span>(trees)</span>
+<span id="cb18-2"><a href="#cb18-2" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" tabindex="-1"></a><span class="fu">names</span>(bt)</span>
+<span id="cb18-4"><a href="#cb18-4" tabindex="-1"></a><span class="co">#&gt; [1] &quot;detail&quot;      &quot;total&quot;       &quot;all_species&quot; &quot;all_total&quot;</span></span></code></pre></div>
+<p>The result is a list of four data frames, and they are the levels of
+aggregation the printed table is later assembled from:
+<code>detail</code> holds each species group by class,
+<code>total</code> each species group across all classes,
+<code>all_species</code> each class across all species groups, and
+<code>all_total</code> the grand total. Confidence intervals and mean
+diameters cannot be summed, which is why these levels are computed
+rather than added up:</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a>bt<span class="sc">$</span>detail <span class="sc">|&gt;</span></span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a>  <span class="fu">select</span>(species_group, age_class, v_hub_m3, n, d_q_cm, n_plot, conf_95_per)</span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="co">#&gt; # A tibble: 18 × 7</span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="co">#&gt; # Groups:   species_group, age_class [18]</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a><span class="co">#&gt;    species_group  age_class v_hub_m3       n d_q_cm n_plot conf_95_per</span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="co">#&gt;    &lt;bav_st_shrt&gt;  &lt;ord&gt;        &lt;dbl&gt;   &lt;dbl&gt;  &lt;dbl&gt;  &lt;int&gt;       &lt;dbl&gt;</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="co">#&gt;  1 spruce         (20,40]      151.  86594.    3.72      1         NA </span></span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a><span class="co">#&gt;  2 spruce         (40,60]      150.     99.6  43.5       1         NA </span></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a><span class="co">#&gt;  3 spruce         (60,80]       63.5    88.8  31.5       1         NA </span></span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a><span class="co">#&gt;  4 spruce         (80,100]    1827.   1496.   35.6       3        165.</span></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a><span class="co">#&gt;  5 spruce         (140,160]    553.    672.   28.1       1         NA </span></span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a><span class="co">#&gt;  6 spruce         (160,999]   2071.   1112.   41.0       1         NA </span></span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a><span class="co">#&gt;  7 pine           (60,80]     1653.   2076.   32.9       2        212.</span></span>
+<span id="cb19-14"><a href="#cb19-14" tabindex="-1"></a><span class="co">#&gt;  8 pine           (80,100]    2000.   2206.   33.5       3        288.</span></span>
+<span id="cb19-15"><a href="#cb19-15" tabindex="-1"></a><span class="co">#&gt;  9 pine           (100,120]    431.    309.   39.8       1         NA </span></span>
+<span id="cb19-16"><a href="#cb19-16" tabindex="-1"></a><span class="co">#&gt; 10 pine           (160,999]   1167.    648.   43.9       1         NA </span></span>
+<span id="cb19-17"><a href="#cb19-17" tabindex="-1"></a><span class="co">#&gt; 11 Douglas fir    (80,100]     173.     76.0  48.5       1         NA </span></span>
+<span id="cb19-18"><a href="#cb19-18" tabindex="-1"></a><span class="co">#&gt; 12 beech          (80,100]     143.     61.9  51.5       1         NA </span></span>
+<span id="cb19-19"><a href="#cb19-19" tabindex="-1"></a><span class="co">#&gt; 13 oak            (0,20]         0    2793.    5.5       1         NA </span></span>
+<span id="cb19-20"><a href="#cb19-20" tabindex="-1"></a><span class="co">#&gt; 14 oak            (40,60]       54.8    99.6  30.5       1         NA </span></span>
+<span id="cb19-21"><a href="#cb19-21" tabindex="-1"></a><span class="co">#&gt; 15 other hardwood (0,20]       168.   5587.   10.5       1         NA </span></span>
+<span id="cb19-22"><a href="#cb19-22" tabindex="-1"></a><span class="co">#&gt; 16 other hardwood (40,60]      226.    498.   28.5       1         NA </span></span>
+<span id="cb19-23"><a href="#cb19-23" tabindex="-1"></a><span class="co">#&gt; 17 other hardwood (80,100]     124.     61.9  47.5       1         NA </span></span>
+<span id="cb19-24"><a href="#cb19-24" tabindex="-1"></a><span class="co">#&gt; 18 noble hardwood (40,60]      104.     99.6  35.5       1         NA</span></span></code></pre></div>
+<p>Two figures in this output deserve a comment, because both say
+something about reading inventory results.</p>
+<p>The stem number of the youngest age class looks enormous next to the
+others. Extreme values often come with very small sample sizes as we
+have here (our demo example comprises ten plots only). As we can see in
+the <code>n_plot</code> column, the stem number and the other variables
+in the age class are upscaled from one single plot only. However,
+despite being very high, such a number is not impossible on a single
+plot. The trees are very small on average, and per hectare they amount
+to some 14 000 stems, which is a possible density for small trees coming
+from natural regeneration.</p>
+<p>The column <code>conf_95_per</code> is the more important one. It
+gives the width of the 95 % confidence interval of the volume, as a
+percentage of the volume itself, and in this example it is wide, clearly
+due to the unrealistically small demo sample size of just ten plots. For
+the inventory as a whole it comes to roughly ± 70 %, and for individual
+cells it is even wider. Clearly, it cannot be computed if there is only
+one plot (therefore the NA values), and for small samples its value is
+itself imprecise. Typical sample inventories comprise several hundred to
+several thousand inventory points. The package also ships a
+hundred-point example, <code>data_ex4_sample_fe_inventory</code>, and
+the same figure there is about ± 14 %.</p>
+<p>Nothing about the <em>method</em> changes between the two — only the
+sample size. It is worth keeping in view whenever an inventory is broken
+down into ever finer classes: every subdivision spends precision, and
+the confidence interval is where you can watch it being spent.</p>
+<p><code>output_base_table()</code> turns the four into the one table
+that gets printed:</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" tabindex="-1"></a>bt <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" tabindex="-1"></a>  <span class="fu">output_base_table</span>() <span class="sc">|&gt;</span></span>
+<span id="cb20-3"><a href="#cb20-3" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">12</span>)</span>
+<span id="cb20-4"><a href="#cb20-4" tabindex="-1"></a><span class="co">#&gt; # A tibble: 12 × 12</span></span>
+<span id="cb20-5"><a href="#cb20-5" tabindex="-1"></a><span class="co">#&gt;    species_group variable      `(0,20]` `(20,40]` `(40,60]` `(60,80]` `(80,100]`</span></span>
+<span id="cb20-6"><a href="#cb20-6" tabindex="-1"></a><span class="co">#&gt;    &lt;bav_st_shrt&gt; &lt;chr&gt;            &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;</span></span>
+<span id="cb20-7"><a href="#cb20-7" tabindex="-1"></a><span class="co">#&gt;  1 spruce        v_hub_m3            NA    151.     150.       63.5      1827.  </span></span>
+<span id="cb20-8"><a href="#cb20-8" tabindex="-1"></a><span class="co">#&gt;  2 spruce        g_m2                NA     94.3     14.8       6.92      149.  </span></span>
+<span id="cb20-9"><a href="#cb20-9" tabindex="-1"></a><span class="co">#&gt;  3 spruce        n                   NA  86594.      99.6      88.8      1496.  </span></span>
+<span id="cb20-10"><a href="#cb20-10" tabindex="-1"></a><span class="co">#&gt;  4 spruce        d_q_cm              NA      3.72    43.5      31.5        35.6 </span></span>
+<span id="cb20-11"><a href="#cb20-11" tabindex="-1"></a><span class="co">#&gt;  5 spruce        h_q_m               NA      9.60    27        23.5        33.1 </span></span>
+<span id="cb20-12"><a href="#cb20-12" tabindex="-1"></a><span class="co">#&gt;  6 spruce        n_plot              NA      1        1         1           3   </span></span>
+<span id="cb20-13"><a href="#cb20-13" tabindex="-1"></a><span class="co">#&gt;  7 spruce        conf_95_per         NA     NA       NA        NA         165.  </span></span>
+<span id="cb20-14"><a href="#cb20-14" tabindex="-1"></a><span class="co">#&gt;  8 spruce        area_ha             NA      6.05     0.509     0.257       5.77</span></span>
+<span id="cb20-15"><a href="#cb20-15" tabindex="-1"></a><span class="co">#&gt;  9 spruce        v_hub_m3_ha         NA     25.0    294.      247.        316.  </span></span>
+<span id="cb20-16"><a href="#cb20-16" tabindex="-1"></a><span class="co">#&gt; 10 spruce        g_m2_ha             NA     15.6     29.0      27.0        25.7 </span></span>
+<span id="cb20-17"><a href="#cb20-17" tabindex="-1"></a><span class="co">#&gt; 11 spruce        n_ha                NA  14316.     195.      346.        259.  </span></span>
+<span id="cb20-18"><a href="#cb20-18" tabindex="-1"></a><span class="co">#&gt; 12 spruce        tot_area_cla…       NA      6.05     3.97     11.5        14.9 </span></span>
+<span id="cb20-19"><a href="#cb20-19" tabindex="-1"></a><span class="co">#&gt; # ℹ 5 more variables: `(100,120]` &lt;dbl&gt;, `(120,140]` &lt;dbl&gt;, `(140,160]` &lt;dbl&gt;,</span></span>
+<span id="cb20-20"><a href="#cb20-20" tabindex="-1"></a><span class="co">#&gt; #   `(160,999]` &lt;dbl&gt;, total &lt;dbl&gt;</span></span></code></pre></div>
+<p>For the diameter variant, the class limits are prepared once by
+<code>back_table_dclass()</code> and passed in:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" tabindex="-1"></a>d_classes <span class="ot">&lt;-</span> <span class="fu">back_table_dclass</span>(trees)</span>
+<span id="cb21-2"><a href="#cb21-2" tabindex="-1"></a></span>
+<span id="cb21-3"><a href="#cb21-3" tabindex="-1"></a><span class="fu">base_table_d_q_class_main_stand</span>(trees, <span class="at">dclass_back =</span> d_classes) <span class="sc">|&gt;</span></span>
+<span id="cb21-4"><a href="#cb21-4" tabindex="-1"></a>  <span class="fu">output_base_table</span>() <span class="sc">|&gt;</span></span>
+<span id="cb21-5"><a href="#cb21-5" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">8</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" tabindex="-1"></a><span class="co">#&gt; # A tibble: 8 × 10</span></span>
+<span id="cb21-7"><a href="#cb21-7" tabindex="-1"></a><span class="co">#&gt;   species_group variable    `(0,10]` `(10,20]` `(20,30]` `(30,40]` `(40,50]`</span></span>
+<span id="cb21-8"><a href="#cb21-8" tabindex="-1"></a><span class="co">#&gt;   &lt;bav_st_shrt&gt; &lt;chr&gt;          &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;</span></span>
+<span id="cb21-9"><a href="#cb21-9" tabindex="-1"></a><span class="co">#&gt; 1 spruce        v_hub_m3      151.          NA   1770.     2745.     150.   </span></span>
+<span id="cb21-10"><a href="#cb21-10" tabindex="-1"></a><span class="co">#&gt; 2 spruce        g_m2           94.3         NA    143.      201.      14.8  </span></span>
+<span id="cb21-11"><a href="#cb21-11" tabindex="-1"></a><span class="co">#&gt; 3 spruce        n           86594.          NA   1434.     1934.      99.6  </span></span>
+<span id="cb21-12"><a href="#cb21-12" tabindex="-1"></a><span class="co">#&gt; 4 spruce        d_q_cm          3.72        NA     35.6      36.4     43.5  </span></span>
+<span id="cb21-13"><a href="#cb21-13" tabindex="-1"></a><span class="co">#&gt; 5 spruce        h_q_m           9.60        NA     33.4      35.8     27    </span></span>
+<span id="cb21-14"><a href="#cb21-14" tabindex="-1"></a><span class="co">#&gt; 6 spruce        n_plot          1           NA      2         3        1    </span></span>
+<span id="cb21-15"><a href="#cb21-15" tabindex="-1"></a><span class="co">#&gt; 7 spruce        conf_95_per    NA           NA    232.      373.      NA    </span></span>
+<span id="cb21-16"><a href="#cb21-16" tabindex="-1"></a><span class="co">#&gt; 8 spruce        area_ha         6.05        NA      5.51      3.22     0.509</span></span>
+<span id="cb21-17"><a href="#cb21-17" tabindex="-1"></a><span class="co">#&gt; # ℹ 3 more variables: `(50,60]` &lt;dbl&gt;, `(60,999]` &lt;dbl&gt;, total &lt;dbl&gt;</span></span></code></pre></div>
+<p>The final step writes the formatted report. It needs the PDF
+toolchain of <a href="#toolchain">section 1.2</a>, and it is the only
+step that does:</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" tabindex="-1"></a>bt <span class="sc">|&gt;</span></span>
+<span id="cb22-2"><a href="#cb22-2" tabindex="-1"></a>  <span class="fu">output_base_table</span>() <span class="sc">|&gt;</span></span>
+<span id="cb22-3"><a href="#cb22-3" tabindex="-1"></a>  <span class="fu">output_base_table_pdf</span>(</span>
+<span id="cb22-4"><a href="#cb22-4" tabindex="-1"></a>    <span class="at">tab_title  =</span> <span class="st">&quot;Example forest enterprise&quot;</span>,</span>
+<span id="cb22-5"><a href="#cb22-5" tabindex="-1"></a>    <span class="at">output_dir =</span> <span class="fu">tempdir</span>(),</span>
+<span id="cb22-6"><a href="#cb22-6" tabindex="-1"></a>    <span class="at">inventory  =</span> data_ex3_sample_fe_inventory</span>
+<span id="cb22-7"><a href="#cb22-7" tabindex="-1"></a>  )</span></code></pre></div>
+<p>The table describes itself: which cohort and which class variable it
+holds is recorded when the table is built and travels with it, so the
+renderer names the file accordingly and states the cohort on the page.
+Passing <code>inventory</code> adds the survey year, the total area and
+the number of inventory points to the header.</p>
+</div>
+<div id="structure-tables" class="section level3">
+<h3>4.2 Structure tables</h3>
+<p>A structure table adds one further level to the base table: within
+each species group and class, the trees are additionally broken down by
+the <strong>diameter of the individual tree</strong>. Where the base
+table states that a species group holds so much volume in a given age
+class, the structure table shows how that volume is distributed over the
+diameter range.</p>
+<p>The functions mirror the base tables exactly, in both choices, so
+everything said above applies unchanged:</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" tabindex="-1"></a>st <span class="ot">&lt;-</span> <span class="fu">structure_table_age_class_main_stand</span>(trees)</span>
+<span id="cb23-2"><a href="#cb23-2" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" tabindex="-1"></a>st <span class="sc">|&gt;</span></span>
+<span id="cb23-4"><a href="#cb23-4" tabindex="-1"></a>  <span class="fu">output_structure_table</span>() <span class="sc">|&gt;</span></span>
+<span id="cb23-5"><a href="#cb23-5" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 17</span></span>
+<span id="cb23-7"><a href="#cb23-7" tabindex="-1"></a><span class="co">#&gt; # Groups:   species_group, age_class [1]</span></span>
+<span id="cb23-8"><a href="#cb23-8" tabindex="-1"></a><span class="co">#&gt;    species_group age_class variable     `(0,5]` `(5,10]` `(10,15]` `(15,20]`</span></span>
+<span id="cb23-9"><a href="#cb23-9" tabindex="-1"></a><span class="co">#&gt;    &lt;bav_st_shrt&gt; &lt;ord&gt;     &lt;chr&gt;          &lt;dbl&gt;    &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;</span></span>
+<span id="cb23-10"><a href="#cb23-10" tabindex="-1"></a><span class="co">#&gt;  1 spruce        (20,40]   v_hub_m3        0      41.5     110.           NA</span></span>
+<span id="cb23-11"><a href="#cb23-11" tabindex="-1"></a><span class="co">#&gt;  2 spruce        (20,40]   g_m2           42.8    22.5      29.0          NA</span></span>
+<span id="cb23-12"><a href="#cb23-12" tabindex="-1"></a><span class="co">#&gt;  3 spruce        (20,40]   n           78214.   5587.     2793.           NA</span></span>
+<span id="cb23-13"><a href="#cb23-13" tabindex="-1"></a><span class="co">#&gt;  4 spruce        (20,40]   d_q_cm          2.64    7.16     11.5          NA</span></span>
+<span id="cb23-14"><a href="#cb23-14" tabindex="-1"></a><span class="co">#&gt;  5 spruce        (20,40]   h_q_m           7.88   11.1      11            NA</span></span>
+<span id="cb23-15"><a href="#cb23-15" tabindex="-1"></a><span class="co">#&gt;  6 spruce        (20,40]   n_plot          1       1         1            NA</span></span>
+<span id="cb23-16"><a href="#cb23-16" tabindex="-1"></a><span class="co">#&gt;  7 spruce        (20,40]   conf_95_per    NA      NA        NA            NA</span></span>
+<span id="cb23-17"><a href="#cb23-17" tabindex="-1"></a><span class="co">#&gt;  8 spruce        (20,40]   area_ha         5.27    0.463     0.311        NA</span></span>
+<span id="cb23-18"><a href="#cb23-18" tabindex="-1"></a><span class="co">#&gt;  9 spruce        (20,40]   v_hub_m3_ha     0      89.5     353.           NA</span></span>
+<span id="cb23-19"><a href="#cb23-19" tabindex="-1"></a><span class="co">#&gt; 10 spruce        (20,40]   g_m2_ha         8.11   48.5      93.4          NA</span></span>
+<span id="cb23-20"><a href="#cb23-20" tabindex="-1"></a><span class="co">#&gt; # ℹ 10 more variables: `(20,25]` &lt;dbl&gt;, `(25,30]` &lt;dbl&gt;, `(30,35]` &lt;dbl&gt;,</span></span>
+<span id="cb23-21"><a href="#cb23-21" tabindex="-1"></a><span class="co">#&gt; #   `(35,40]` &lt;dbl&gt;, `(40,45]` &lt;dbl&gt;, `(45,50]` &lt;dbl&gt;, `(50,55]` &lt;dbl&gt;,</span></span>
+<span id="cb23-22"><a href="#cb23-22" tabindex="-1"></a><span class="co">#&gt; #   `(55,60]` &lt;dbl&gt;, `(60,999]` &lt;dbl&gt;, total &lt;dbl&gt;</span></span></code></pre></div>
+<p>and, as before, <code>output_structure_table_pdf()</code> renders
+it.</p>
+<p>One restriction is worth stating clearly, because it is a matter of
+meaning rather than of technique. Structure tables are built for
+inventories that carry individual tree sizes. Currently, only the sample
+inventory formats we support provide that information. Stand-wise
+inventories can in principle provide it as well, but the formats we
+support convey mean tree sizes only. Structure tables will also run on
+such data, but the result should not be used. The diameter breakdown
+would then be an artefact of a single mean value, and would suggest a
+structure that was never measured. <em>FeNEU</em> warns when it suspects
+this case.</p>
+</div>
+</div>
+<div id="increment" class="section level2">
+<h2>5 Increment Estimation</h2>
+<p>Volume increment cannot be read off an inventory the way standing
+volume can. <em>FeNEU</em> estimates it in three ways, and which of them
+is available depends on the data at hand:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Data required</th>
+<th>Reports</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Repeated survey</strong></td>
+<td>two surveys of the same plots</td>
+<td>any tree collective, with a confidence interval</td>
+</tr>
+<tr class="even">
+<td><strong>BWI 3 growth functions</strong></td>
+<td>one survey, with tree ages</td>
+<td>any tree collective</td>
+</tr>
+<tr class="odd">
+<td><strong>Yield tables</strong></td>
+<td>one survey, with tree ages</td>
+<td>main stand only</td>
+</tr>
+</tbody>
+</table>
+<p>The repeated survey is the most informative way: it rests on
+measurements taken twice, so the increment is observed rather than
+modelled, and it is the only one of the three that yields a confidence
+interval. It is currently supported for sample inventories only. The
+other two use models, and both need the age of the trees/stands. Where
+an inventory carries no or incomplete ages — which happens, and is
+legitimate, since age is an optional attribute — these two are not
+available, and entering a pragmatic figure might be a workaround.</p>
+<p>The three are treated in detail in the vignette <a href="increment_estimation.html">Increment Estimation</a>. This section
+shows what each of them looks like from the outside.</p>
+<div id="repeated_survey" class="section level3">
+<h3>5.1 Increment from a repeated survey</h3>
+<p>The package bundles the two ex3 surveys — the one used above and an
+earlier one — together with their prepared tree tables, so the example
+starts where <a href="#status_quo">section 4</a> left off:</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" tabindex="-1"></a>inc <span class="ot">&lt;-</span> <span class="fu">inv_increment_repeated_survey</span>(</span>
+<span id="cb24-2"><a href="#cb24-2" tabindex="-1"></a>  <span class="at">inv_1st       =</span> data_ex3_previous_sample_fe_inventory,</span>
+<span id="cb24-3"><a href="#cb24-3" tabindex="-1"></a>  <span class="at">inv_2nd       =</span> data_ex3_sample_fe_inventory,</span>
+<span id="cb24-4"><a href="#cb24-4" tabindex="-1"></a>  <span class="at">inv_1st_trees =</span> data_ex3_previous_sample_trees_essentials,</span>
+<span id="cb24-5"><a href="#cb24-5" tabindex="-1"></a>  <span class="at">inv_2nd_trees =</span> data_ex3_sample_trees_essentials,</span>
+<span id="cb24-6"><a href="#cb24-6" tabindex="-1"></a>  <span class="at">method        =</span> <span class="st">&quot;rep_classic&quot;</span>,</span>
+<span id="cb24-7"><a href="#cb24-7" tabindex="-1"></a>  <span class="at">fill_option   =</span> <span class="st">&quot;standard&quot;</span>,</span>
+<span id="cb24-8"><a href="#cb24-8" tabindex="-1"></a>  <span class="at">progress_bar  =</span> <span class="cn">FALSE</span></span>
+<span id="cb24-9"><a href="#cb24-9" tabindex="-1"></a>)</span>
+<span id="cb24-10"><a href="#cb24-10" tabindex="-1"></a></span>
+<span id="cb24-11"><a href="#cb24-11" tabindex="-1"></a>inc</span>
+<span id="cb24-12"><a href="#cb24-12" tabindex="-1"></a><span class="co">#&gt; &lt;fe_increment_repsurv&gt;</span></span>
+<span id="cb24-13"><a href="#cb24-13" tabindex="-1"></a><span class="co">#&gt;   Surveys      : 2009 -&gt; 2020  (period 11 yr)</span></span>
+<span id="cb24-14"><a href="#cb24-14" tabindex="-1"></a><span class="co">#&gt;   Area / plots : 46.7 ha / 10</span></span>
+<span id="cb24-15"><a href="#cb24-15" tabindex="-1"></a><span class="co">#&gt;   Method       : rep_classic / fill: standard</span></span>
+<span id="cb24-16"><a href="#cb24-16" tabindex="-1"></a><span class="co">#&gt;   Trees        : 139</span></span>
+<span id="cb24-17"><a href="#cb24-17" tabindex="-1"></a><span class="co">#&gt;   Increment    : 9.57 m3/ha/yr (summaric balance)</span></span>
+<span id="cb24-18"><a href="#cb24-18" tabindex="-1"></a><span class="co">#&gt;   Steps kept   : no</span></span>
+<span id="cb24-19"><a href="#cb24-19" tabindex="-1"></a><span class="co">#&gt;   Use increment_base_table() / output_increment_overall() on this object.</span></span></code></pre></div>
+<p>One call covers the whole chain: the plots of the two surveys are
+matched, the trees within them are matched, an increment is derived for
+every tree, and the trees that could not be matched are either ingrown
+or removed/mortal and are dealt with accordingly. Each step is also
+available as a function of its own; the increment vignette lists them.
+For most purposes this single call is sufficient.</p>
+<p>Two arguments deserve attention. <code>method</code> selects how a
+tree’s increment is derived from two measurements — there are four
+variants, and they differ in how they treat trees that changed sample
+circle between the surveys. <code>fill_option</code> governs what
+happens to trees that could not be matched at all. Both are subjects of
+the <a href="increment_estimation.html">Increment Estimation</a>
+vignette.</p>
+<p>The result carries everything the later steps need:</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" tabindex="-1"></a><span class="fu">names</span>(inc)</span>
+<span id="cb25-2"><a href="#cb25-2" tabindex="-1"></a><span class="co">#&gt; [1] &quot;trees&quot;    &quot;overview&quot; &quot;summaric&quot; &quot;meta&quot;     &quot;steps&quot;</span></span></code></pre></div>
+<p><code>trees</code> holds the per-tree increments,
+<code>overview</code> the aggregation by plot and enterprise,
+<code>summaric</code> the increment balance of the enterprise,
+<code>meta</code> the figures the reports print in their header, and
+<code>steps</code> the intermediate results of the chain, for anyone who
+wants to look inside.</p>
+<p>From here there are two directions. Broken down by species group and
+class, in the layout of the status-quo tables:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" tabindex="-1"></a><span class="fu">increment_base_table_main_stand</span>(inc, <span class="at">by_class =</span> <span class="st">&quot;age&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb26-2"><a href="#cb26-2" tabindex="-1"></a>  <span class="fu">output_increment_base_table</span>() <span class="sc">|&gt;</span></span>
+<span id="cb26-3"><a href="#cb26-3" tabindex="-1"></a>  <span class="fu">head</span>(<span class="dv">10</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 12</span></span>
+<span id="cb26-5"><a href="#cb26-5" tabindex="-1"></a><span class="co">#&gt;    species_group variable      `(0,20]` `(20,40]` `(40,60]` `(60,80]` `(80,100]`</span></span>
+<span id="cb26-6"><a href="#cb26-6" tabindex="-1"></a><span class="co">#&gt;    &lt;bav_st_shrt&gt; &lt;chr&gt;            &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;</span></span>
+<span id="cb26-7"><a href="#cb26-7" tabindex="-1"></a><span class="co">#&gt;  1 spruce        n_plot_class        NA     1         2         1           3   </span></span>
+<span id="cb26-8"><a href="#cb26-8" tabindex="-1"></a><span class="co">#&gt;  2 spruce        n_iv_total          NA     7        14         1          21   </span></span>
+<span id="cb26-9"><a href="#cb26-9" tabindex="-1"></a><span class="co">#&gt;  3 spruce        n_iv_filled         NA     7        14         0          10   </span></span>
+<span id="cb26-10"><a href="#cb26-10" tabindex="-1"></a><span class="co">#&gt;  4 spruce        iv_m3_yr_tot…       NA    12.0      34.4       5.77       64.7 </span></span>
+<span id="cb26-11"><a href="#cb26-11" tabindex="-1"></a><span class="co">#&gt;  5 spruce        ci95_iv_m3_y…       NA    25.7      69.3      13.2        92.0 </span></span>
+<span id="cb26-12"><a href="#cb26-12" tabindex="-1"></a><span class="co">#&gt;  6 spruce        iv_m3_ha_yr         NA     0.256     0.737     0.124       1.39</span></span>
+<span id="cb26-13"><a href="#cb26-13" tabindex="-1"></a><span class="co">#&gt;  7 spruce        ci95_iv_m3_h…       NA     0.549     1.48      0.282       1.97</span></span>
+<span id="cb26-14"><a href="#cb26-14" tabindex="-1"></a><span class="co">#&gt;  8 spruce        area_ha             NA     6.05      3.48      0.198       5.78</span></span>
+<span id="cb26-15"><a href="#cb26-15" tabindex="-1"></a><span class="co">#&gt;  9 spruce        iv_m3_ha_yr_…       NA     1.98      9.89     29.2        11.2 </span></span>
+<span id="cb26-16"><a href="#cb26-16" tabindex="-1"></a><span class="co">#&gt; 10 pine          n_plot_class        NA    NA        NA         2           3   </span></span>
+<span id="cb26-17"><a href="#cb26-17" tabindex="-1"></a><span class="co">#&gt; # ℹ 5 more variables: `(100,120]` &lt;dbl&gt;, `(120,140]` &lt;dbl&gt;, `(140,160]` &lt;dbl&gt;,</span></span>
+<span id="cb26-18"><a href="#cb26-18" tabindex="-1"></a><span class="co">#&gt; #   `(160,999]` &lt;dbl&gt;, total &lt;dbl&gt;</span></span></code></pre></div>
+<p>Or as the enterprise-level summary, which is the figure to quote when
+the question is what the whole forest grows:</p>
+<div class="sourceCode" id="cb27"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" tabindex="-1"></a>ovr <span class="ot">&lt;-</span> <span class="fu">output_increment_overall</span>(inc)</span>
+<span id="cb27-2"><a href="#cb27-2" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" tabindex="-1"></a>ovr<span class="sc">$</span>table_combined <span class="sc">|&gt;</span></span>
+<span id="cb27-4"><a href="#cb27-4" tabindex="-1"></a>  <span class="fu">select</span>(species_group, is_total_row, iv_m3_ha_yr_st, iv_m3_ha_yr_sum)</span>
+<span id="cb27-5"><a href="#cb27-5" tabindex="-1"></a><span class="co">#&gt; # A tibble: 8 × 4</span></span>
+<span id="cb27-6"><a href="#cb27-6" tabindex="-1"></a><span class="co">#&gt;   species_group  is_total_row iv_m3_ha_yr_st iv_m3_ha_yr_sum</span></span>
+<span id="cb27-7"><a href="#cb27-7" tabindex="-1"></a><span class="co">#&gt;   &lt;bav_st_shrt&gt;  &lt;lgl&gt;                 &lt;dbl&gt;           &lt;dbl&gt;</span></span>
+<span id="cb27-8"><a href="#cb27-8" tabindex="-1"></a><span class="co">#&gt; 1 spruce         FALSE                3.94            4.15  </span></span>
+<span id="cb27-9"><a href="#cb27-9" tabindex="-1"></a><span class="co">#&gt; 2 pine           FALSE                4.81            4.80  </span></span>
+<span id="cb27-10"><a href="#cb27-10" tabindex="-1"></a><span class="co">#&gt; 3 larch          FALSE                0.139           0.130 </span></span>
+<span id="cb27-11"><a href="#cb27-11" tabindex="-1"></a><span class="co">#&gt; 4 Douglas fir    FALSE                0.168           0.168 </span></span>
+<span id="cb27-12"><a href="#cb27-12" tabindex="-1"></a><span class="co">#&gt; 5 beech          FALSE                0.115           0.115 </span></span>
+<span id="cb27-13"><a href="#cb27-13" tabindex="-1"></a><span class="co">#&gt; 6 oak            FALSE                0.0476          0.0476</span></span>
+<span id="cb27-14"><a href="#cb27-14" tabindex="-1"></a><span class="co">#&gt; 7 other hardwood FALSE                0.503           0.532 </span></span>
+<span id="cb27-15"><a href="#cb27-15" tabindex="-1"></a><span class="co">#&gt; 8 NA             TRUE                 9.35            9.57</span></span></code></pre></div>
+<p>The last row is the enterprise as a whole. The two columns are two
+ways of arriving at it, and they differ slightly, here 9.35 against 9.57
+m³ per hectare and year: <code>_st</code> adds up the increments of the
+individual trees, <code>_sum</code> is the balance of the two surveys
+over the whole measured population — standing volume of the second
+survey, minus that of the first, plus what was removed in between. For
+the enterprise level, that balance is the reference figure; the per-tree
+route is what allows the increment to be broken down into species and
+classes at all.</p>
+<p>Besides <code>table_combined</code>, which covers all inventory
+points, the result holds <code>table_matched</code> for the points
+measured in both surveys and <code>table_2nd_only</code> for those the
+later survey added, plus a <code>meta</code> element for the report
+header. The confidence interval is reported in
+<code>table_matched</code> — for this example 9.80 ± 2.29 m³ per hectare
+and year. It is derived from the scatter between the inventory points,
+which requires an inventory point measured twice; the points the later
+survey added contribute an estimate instead, so the combined table
+carries no confidence interval.</p>
+<p>Both have their <code>*_pdf()</code> counterpart,
+<code>output_increment_base_table_pdf()</code> and
+<code>output_increment_overall_pdf()</code>, and both follow the
+three-step pattern of <a href="#status_quo">section 4</a>.</p>
+</div>
+<div id="increment-from-a-single-survey" class="section level3">
+<h3>5.2 Increment from a single survey</h3>
+<p>Where only one survey exists, the increment has to be estimated from
+the current state of the trees. <em>FeNEU</em> offers two independent
+approaches.</p>
+<p>The <strong>growth functions of the third German National Forest
+Inventory</strong> (BWI 3) <span class="citation">(Riedel et al.
+2017)</span> estimate the increment of each tree from its own dimensions
+and age. They yield the same per-tree quantity the repeated survey
+produces, which is why the same aggregation functions apply from there
+on. <code>inv_increment_gnfi3()</code> covers the chain and returns the
+same kind of object as <code>inv_increment_repeated_survey()</code>:</p>
+<div class="sourceCode" id="cb28"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" tabindex="-1"></a>inc_bwi3 <span class="ot">&lt;-</span> <span class="fu">inv_increment_gnfi3</span>(</span>
+<span id="cb28-2"><a href="#cb28-2" tabindex="-1"></a>  <span class="at">inv       =</span> data_ex3_sample_fe_inventory,</span>
+<span id="cb28-3"><a href="#cb28-3" tabindex="-1"></a>  <span class="at">inv_trees =</span> data_ex3_sample_trees_essentials,</span>
+<span id="cb28-4"><a href="#cb28-4" tabindex="-1"></a>  <span class="at">dt        =</span> <span class="dv">5</span></span>
+<span id="cb28-5"><a href="#cb28-5" tabindex="-1"></a>)</span>
+<span id="cb28-6"><a href="#cb28-6" tabindex="-1"></a></span>
+<span id="cb28-7"><a href="#cb28-7" tabindex="-1"></a>inc_bwi3</span>
+<span id="cb28-8"><a href="#cb28-8" tabindex="-1"></a><span class="co">#&gt; &lt;fe_increment_gnfi3&gt;</span></span>
+<span id="cb28-9"><a href="#cb28-9" tabindex="-1"></a><span class="co">#&gt;   Survey       : 2020 </span></span>
+<span id="cb28-10"><a href="#cb28-10" tabindex="-1"></a><span class="co">#&gt;   Area / plots : 46.7 ha / 10</span></span>
+<span id="cb28-11"><a href="#cb28-11" tabindex="-1"></a><span class="co">#&gt;   Method       : BWI 3 growth functions, single inventory</span></span>
+<span id="cb28-12"><a href="#cb28-12" tabindex="-1"></a><span class="co">#&gt;   Trees        : 108 </span></span>
+<span id="cb28-13"><a href="#cb28-13" tabindex="-1"></a><span class="co">#&gt;   Increment    : 7.33 m3/ha/yr</span></span>
+<span id="cb28-14"><a href="#cb28-14" tabindex="-1"></a><span class="co">#&gt;   Steps kept   : no </span></span>
+<span id="cb28-15"><a href="#cb28-15" tabindex="-1"></a><span class="co">#&gt;   Use increment_base_table() on this object.</span></span></code></pre></div>
+<p><code>dt</code> is the span the estimate covers, in years. A positive
+value looks forward, a negative one back; five years is a deliberate
+default rather than a number worth changing lightly, since the further
+such an estimate reaches, the more it is affected by removals, mortality
+and ingrowth it cannot know about.</p>
+<p>From here the routes of <a href="#repeated_survey">section 5.1</a>
+apply unchanged — the class tables, and the species-group overview:</p>
+<div class="sourceCode" id="cb29"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" tabindex="-1"></a><span class="fu">increment_base_table</span>(inc_bwi3, <span class="at">by_class =</span> <span class="st">&quot;age&quot;</span>) <span class="sc">|&gt;</span></span>
+<span id="cb29-2"><a href="#cb29-2" tabindex="-1"></a>  <span class="fu">output_increment_overview_gnfi3</span>()</span>
+<span id="cb29-3"><a href="#cb29-3" tabindex="-1"></a><span class="co">#&gt; # A tibble: 9 × 4</span></span>
+<span id="cb29-4"><a href="#cb29-4" tabindex="-1"></a><span class="co">#&gt;   species_group  is_total_row zv_m3_yr zv_m3_ha_yr</span></span>
+<span id="cb29-5"><a href="#cb29-5" tabindex="-1"></a><span class="co">#&gt;   &lt;bav_st_shrt&gt;  &lt;lgl&gt;           &lt;dbl&gt;       &lt;dbl&gt;</span></span>
+<span id="cb29-6"><a href="#cb29-6" tabindex="-1"></a><span class="co">#&gt; 1 spruce         FALSE          163.        3.49  </span></span>
+<span id="cb29-7"><a href="#cb29-7" tabindex="-1"></a><span class="co">#&gt; 2 pine           FALSE          118.        2.53  </span></span>
+<span id="cb29-8"><a href="#cb29-8" tabindex="-1"></a><span class="co">#&gt; 3 larch          FALSE            7.35      0.157 </span></span>
+<span id="cb29-9"><a href="#cb29-9" tabindex="-1"></a><span class="co">#&gt; 4 Douglas fir    FALSE            5.91      0.126 </span></span>
+<span id="cb29-10"><a href="#cb29-10" tabindex="-1"></a><span class="co">#&gt; 5 beech          FALSE            3.88      0.0829</span></span>
+<span id="cb29-11"><a href="#cb29-11" tabindex="-1"></a><span class="co">#&gt; 6 oak            FALSE            6.92      0.148 </span></span>
+<span id="cb29-12"><a href="#cb29-12" tabindex="-1"></a><span class="co">#&gt; 7 other hardwood FALSE           34.0       0.728 </span></span>
+<span id="cb29-13"><a href="#cb29-13" tabindex="-1"></a><span class="co">#&gt; 8 noble hardwood FALSE            3.46      0.0741</span></span>
+<span id="cb29-14"><a href="#cb29-14" tabindex="-1"></a><span class="co">#&gt; 9 NA             TRUE           343.        7.33</span></span></code></pre></div>
+<p>This is an estimate for the forest evaluated with the repeated survey
+above, arrived at independently and from one survey alone: 7.3 against
+9.4 m³ per hectare and year. Holding the two against each other is one
+of the reasons to have both.</p>
+<p>Since the estimate ages every tree, it needs the age of every tree.
+Where a stand layer carries no ages — which happens, and is legitimate —
+the function stops rather than evaluating the part of the population
+that happens to have one. If ages exist for the main stand only,
+restricting the tree list to it beforehand
+(<code>dplyr::filter(trees, layer_key == 1)</code>) yields a main-stand
+evaluation of the whole enterprise; the reference area stays the full
+inventory area.</p>
+<p><strong>Yield tables</strong> take the other route. They work at
+stand level rather than on individual trees, which requires the area to
+be split into the shares of virtual monospecific stands. Unlike the
+other two, this approach therefore applies to the main stand only.
+<em>FeNEU</em> uses the yield table system of <em>ForestElementsR</em>,
+described in its own vignette
+(<code>vignette(&quot;yield_tables&quot;, package = &quot;ForestElementsR&quot;)</code>).</p>
+<div class="sourceCode" id="cb30"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" tabindex="-1"></a>inc_yt <span class="ot">&lt;-</span> <span class="fu">inv_increment_ytables</span>(</span>
+<span id="cb30-2"><a href="#cb30-2" tabindex="-1"></a>  <span class="at">inv              =</span> data_ex3_sample_fe_inventory,</span>
+<span id="cb30-3"><a href="#cb30-3" tabindex="-1"></a>  <span class="at">inv_trees        =</span> data_ex3_sample_trees_essentials,</span>
+<span id="cb30-4"><a href="#cb30-4" tabindex="-1"></a>  <span class="at">ytable_selection =</span> ytables_bavrn_state_var_1_feneu</span>
+<span id="cb30-5"><a href="#cb30-5" tabindex="-1"></a>)</span>
+<span id="cb30-6"><a href="#cb30-6" tabindex="-1"></a></span>
+<span id="cb30-7"><a href="#cb30-7" tabindex="-1"></a>inc_yt</span>
+<span id="cb30-8"><a href="#cb30-8" tabindex="-1"></a><span class="co">#&gt; &lt;fe_increment_ytables&gt;</span></span>
+<span id="cb30-9"><a href="#cb30-9" tabindex="-1"></a><span class="co">#&gt;   Survey       : 2020 </span></span>
+<span id="cb30-10"><a href="#cb30-10" tabindex="-1"></a><span class="co">#&gt;   Area / plots : 46.7 ha / 10</span></span>
+<span id="cb30-11"><a href="#cb30-11" tabindex="-1"></a><span class="co">#&gt;   Method       : yield tables, single inventory</span></span>
+<span id="cb30-12"><a href="#cb30-12" tabindex="-1"></a><span class="co">#&gt;   Collective   : Hauptbestand </span></span>
+<span id="cb30-13"><a href="#cb30-13" tabindex="-1"></a><span class="co">#&gt;   Cohorts      : 22 (plot x species)</span></span>
+<span id="cb30-14"><a href="#cb30-14" tabindex="-1"></a><span class="co">#&gt;   Increment    : 4.19 m3/ha/yr</span></span>
+<span id="cb30-15"><a href="#cb30-15" tabindex="-1"></a><span class="co">#&gt;   Use increment_ytables_base_table() on this object.</span></span>
+<span id="cb30-16"><a href="#cb30-16" tabindex="-1"></a></span>
+<span id="cb30-17"><a href="#cb30-17" tabindex="-1"></a>inc_yt<span class="sc">$</span>overview</span>
+<span id="cb30-18"><a href="#cb30-18" tabindex="-1"></a><span class="co">#&gt; # A tibble: 9 × 7</span></span>
+<span id="cb30-19"><a href="#cb30-19" tabindex="-1"></a><span class="co">#&gt;   species_group  area_ha site_index zv_m3_ha_yr zv_m3_yr is_total_row</span></span>
+<span id="cb30-20"><a href="#cb30-20" tabindex="-1"></a><span class="co">#&gt;   &lt;bav_st_shrt&gt;    &lt;dbl&gt;      &lt;dbl&gt;       &lt;dbl&gt;    &lt;dbl&gt; &lt;lgl&gt;       </span></span>
+<span id="cb30-21"><a href="#cb30-21" tabindex="-1"></a><span class="co">#&gt; 1 spruce          15.3        0.895        6.58   101.   FALSE       </span></span>
+<span id="cb30-22"><a href="#cb30-22" tabindex="-1"></a><span class="co">#&gt; 2 pine            21.6        0.729        3.12    67.2  FALSE       </span></span>
+<span id="cb30-23"><a href="#cb30-23" tabindex="-1"></a><span class="co">#&gt; 3 Douglas fir      0.687      1.36         2.70     1.85 FALSE       </span></span>
+<span id="cb30-24"><a href="#cb30-24" tabindex="-1"></a><span class="co">#&gt; 4 beech            0.812      2.48         3.61     2.93 FALSE       </span></span>
+<span id="cb30-25"><a href="#cb30-25" tabindex="-1"></a><span class="co">#&gt; 5 oak              0.610      3            4.99     3.04 FALSE       </span></span>
+<span id="cb30-26"><a href="#cb30-26" tabindex="-1"></a><span class="co">#&gt; 6 other hardwood   4.24       1.30         3.84    16.3  FALSE       </span></span>
+<span id="cb30-27"><a href="#cb30-27" tabindex="-1"></a><span class="co">#&gt; 7 noble hardwood   0.563     -0.531        6.78     3.81 FALSE       </span></span>
+<span id="cb30-28"><a href="#cb30-28" tabindex="-1"></a><span class="co">#&gt; 8 NA               2.97      NA           NA       NA    FALSE       </span></span>
+<span id="cb30-29"><a href="#cb30-29" tabindex="-1"></a><span class="co">#&gt; 9 NA              46.7       NA            4.19   196.   TRUE        </span></span>
+<span id="cb30-30"><a href="#cb30-30" tabindex="-1"></a><span class="co">#&gt; # ℹ 1 more variable: is_no_main_stand_row &lt;lgl&gt;</span></span></code></pre></div>
+<p>The estimate is made for each <strong>cohort</strong>: one species in
+the main stand of one inventory plot, on the virtual area it occupies
+there. Its age and mean height give the site index, age and site index
+give the increment the yield table holds, and that figure is corrected
+by the stocking level — the cohort’s basal area over the basal area the
+table expects. A cohort has one age and one mean diameter, so grouping a
+report by age class or by diameter class labels the same estimate rather
+than changing it.</p>
+<p>The overview reads accordingly: <code>area_ha</code> is the virtual
+area of each species group, <code>site_index</code> its mean site index,
+and <code>zv_m3_ha_yr</code> the increment on that virtual area. The
+total row is not an average of those figures — it relates the whole
+increment to the entire inventory area, which is the larger reference.
+Its <code>site_index</code> is empty because the index scales of
+different yield tables cannot be averaged. The row without a species
+group carries the area of inventory points that hold no living main
+stand, so that the areas add up to the inventory total.</p>
+<p><code>ytables_bavrn_state_var_1_feneu</code> assigns a yield table to
+each species code. It is the set <em>FeNEU</em> ships, not a fixed part
+of the method — the assignment can be replaced by one of your own, built
+from the yield tables <em>ForestElementsR</em> provides. The <a href="increment_estimation.html">Increment Estimation</a> vignette shows
+how, and what the choice implies.</p>
+</div>
+</div>
+<div id="tools" class="section level2">
+<h2>6 Useful tools</h2>
+<p>Beside the chains of the previous chapters, <em>FeNEU</em> holds a
+few functions that are useful in their own right.</p>
+<div id="reaching-into-an-inventory" class="section level3">
+<h3>6.1 Reaching into an inventory</h3>
+<p><a href="#status_quo">Section 4</a> used <code>pull_trees()</code> to
+get at the trees of an <code>fe_inventory</code>. Three further
+functions pull the other parts of it into a flat table:
+<code>pull_centers()</code> the plot centre coordinates,
+<code>pull_circle_definitions()</code> the circle geometry of each plot,
+and <code>pull_sums()</code> the stand sums and mean values per plot and
+layer.</p>
+<div class="sourceCode" id="cb31"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" tabindex="-1"></a><span class="fu">pull_centers</span>(data_ex3_sample_fe_inventory)</span>
+<span id="cb31-2"><a href="#cb31-2" tabindex="-1"></a><span class="co">#&gt; Simple feature collection with 10 features and 1 field</span></span>
+<span id="cb31-3"><a href="#cb31-3" tabindex="-1"></a><span class="co">#&gt; Geometry type: POINT</span></span>
+<span id="cb31-4"><a href="#cb31-4" tabindex="-1"></a><span class="co">#&gt; Dimension:     XY</span></span>
+<span id="cb31-5"><a href="#cb31-5" tabindex="-1"></a><span class="co">#&gt; Bounding box:  xmin: 729780 ymin: 5427422 xmax: 752949 ymax: 5457197</span></span>
+<span id="cb31-6"><a href="#cb31-6" tabindex="-1"></a><span class="co">#&gt; Projected CRS: ETRS89 / UTM zone 32N</span></span>
+<span id="cb31-7"><a href="#cb31-7" tabindex="-1"></a><span class="co">#&gt;                 plot_id               geometry</span></span>
+<span id="cb31-8"><a href="#cb31-8" tabindex="-1"></a><span class="co">#&gt; 1  900000002_1_99900002 POINT (729780 5427422)</span></span>
+<span id="cb31-9"><a href="#cb31-9" tabindex="-1"></a><span class="co">#&gt; 2  900000015_1_99900015 POINT (735935 5438876)</span></span>
+<span id="cb31-10"><a href="#cb31-10" tabindex="-1"></a><span class="co">#&gt; 3  900000020_1_99900020 POINT (742855 5438138)</span></span>
+<span id="cb31-11"><a href="#cb31-11" tabindex="-1"></a><span class="co">#&gt; 4  900000029_1_99900029 POINT (744306 5437209)</span></span>
+<span id="cb31-12"><a href="#cb31-12" tabindex="-1"></a><span class="co">#&gt; 5  900000043_1_99900043 POINT (752853 5457197)</span></span>
+<span id="cb31-13"><a href="#cb31-13" tabindex="-1"></a><span class="co">#&gt; 6  900000046_1_99900046 POINT (748622 5431646)</span></span>
+<span id="cb31-14"><a href="#cb31-14" tabindex="-1"></a><span class="co">#&gt; 7  900000061_1_99900061 POINT (752949 5445687)</span></span>
+<span id="cb31-15"><a href="#cb31-15" tabindex="-1"></a><span class="co">#&gt; 8  900000075_1_99900075 POINT (745965 5453085)</span></span>
+<span id="cb31-16"><a href="#cb31-16" tabindex="-1"></a><span class="co">#&gt; 9  900000086_1_99900086 POINT (742935 5443759)</span></span>
+<span id="cb31-17"><a href="#cb31-17" tabindex="-1"></a><span class="co">#&gt; 10 900000100_1_99900100 POINT (749610 5435061)</span></span></code></pre></div>
+</div>
+<div id="the-figures-that-describe-an-inventory" class="section level3">
+<h3>6.2 The figures that describe an inventory</h3>
+<p><code>inventory_meta()</code> returns the survey year, the inventory
+area and the number of plots. These are the three figures the PDF
+reports print below their title, and they are read off the inventory
+object itself, so they also cover plots that carry no trees:</p>
+<div class="sourceCode" id="cb32"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" tabindex="-1"></a><span class="fu">inventory_meta</span>(data_ex3_sample_fe_inventory)</span>
+<span id="cb32-2"><a href="#cb32-2" tabindex="-1"></a><span class="co">#&gt; $year</span></span>
+<span id="cb32-3"><a href="#cb32-3" tabindex="-1"></a><span class="co">#&gt; [1] 2020</span></span>
+<span id="cb32-4"><a href="#cb32-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-5"><a href="#cb32-5" tabindex="-1"></a><span class="co">#&gt; $area_ha</span></span>
+<span id="cb32-6"><a href="#cb32-6" tabindex="-1"></a><span class="co">#&gt; [1] 46.73489</span></span>
+<span id="cb32-7"><a href="#cb32-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb32-8"><a href="#cb32-8" tabindex="-1"></a><span class="co">#&gt; $n_plots</span></span>
+<span id="cb32-9"><a href="#cb32-9" tabindex="-1"></a><span class="co">#&gt; [1] 10</span></span></code></pre></div>
+<p><code>get_inv_year()</code> returns the survey year alone. For a pair
+of surveys, <code>inv_period()</code> adds the period between them — the
+reference period of a repeated-survey increment:</p>
+<div class="sourceCode" id="cb33"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" tabindex="-1"></a><span class="fu">inv_period</span>(data_ex3_previous_sample_fe_inventory, data_ex3_sample_fe_inventory)</span>
+<span id="cb33-2"><a href="#cb33-2" tabindex="-1"></a><span class="co">#&gt; $time_yr_1st</span></span>
+<span id="cb33-3"><a href="#cb33-3" tabindex="-1"></a><span class="co">#&gt; [1] 2009</span></span>
+<span id="cb33-4"><a href="#cb33-4" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-5"><a href="#cb33-5" tabindex="-1"></a><span class="co">#&gt; $time_yr_2nd</span></span>
+<span id="cb33-6"><a href="#cb33-6" tabindex="-1"></a><span class="co">#&gt; [1] 2020</span></span>
+<span id="cb33-7"><a href="#cb33-7" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb33-8"><a href="#cb33-8" tabindex="-1"></a><span class="co">#&gt; $period_yr</span></span>
+<span id="cb33-9"><a href="#cb33-9" tabindex="-1"></a><span class="co">#&gt; [1] 11</span></span></code></pre></div>
+</div>
+<div id="a-sheet-for-a-single-inventory-plot" class="section level3">
+<h3>6.3 A sheet for a single inventory plot</h3>
+<p><code>plot_info_sheet_pdf()</code> renders one inventory plot as a
+PDF sheet. It takes a single plot rather than the whole inventory, so it
+is applied to an element of the <code>plot</code> column:</p>
+<div class="sourceCode" id="cb34"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" tabindex="-1"></a>data_ex3_sample_fe_inventory<span class="sc">$</span>plot[[<span class="dv">1</span>]] <span class="sc">|&gt;</span></span>
+<span id="cb34-2"><a href="#cb34-2" tabindex="-1"></a>  <span class="fu">plot_info_sheet_pdf</span>(<span class="at">output_dir =</span> <span class="fu">tempdir</span>())</span></code></pre></div>
+<p>Like every <code>*_pdf()</code> function it needs the toolchain of <a href="#toolchain">section 1.2</a>. <code>dbh_scale</code> oversizes the
+tree symbols, which keeps them visible on a plot drawn to scale.</p>
+</div>
+<div id="writing-a-circle-definition" class="section level3">
+<h3>6.4 Writing a circle definition</h3>
+<p>The concentric importers of <a href="#import">section 3</a> require a
+circle definition. Where none is at hand,
+<code>generate_circle_definition()</code> writes one:</p>
+<div class="sourceCode" id="cb35"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" tabindex="-1"></a><span class="fu">generate_circle_definition</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" tabindex="-1"></a>  <span class="at">output_dir  =</span> <span class="fu">tempdir</span>(),</span>
+<span id="cb35-3"><a href="#cb35-3" tabindex="-1"></a>  <span class="at">dbh_cm_from =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">12</span>, <span class="dv">30</span>),</span>
+<span id="cb35-4"><a href="#cb35-4" tabindex="-1"></a>  <span class="at">radiuses_m  =</span> <span class="fu">c</span>(<span class="fl">2.82</span>, <span class="fl">5.64</span>, <span class="fl">12.62</span>)</span>
+<span id="cb35-5"><a href="#cb35-5" tabindex="-1"></a>)</span></code></pre></div>
+<p>It produces a <em>uniform</em> definition — the same circles for
+every plot. There is deliberately no default geometry: the circle sizes
+determine the representation factors and therefore every per-hectare
+figure that follows. An inventory whose plots fall into several circle
+classes needs a file written by hand, with one <code>fe_ikl</code> per
+class.</p>
+</div>
+<div id="standard-errors-of-your-own-aggregations" class="section level3">
+<h3>6.5 Standard errors of your own aggregations</h3>
+<p>Inventory plots represent different areas, so a mean over them is a
+ratio estimator rather than an arithmetic mean.
+<code>se_area_weighted()</code> computes it together with its standard
+error and confidence interval, from the per-hectare values of the plots
+and the areas they represent. It is what the confidence intervals of the
+increment reports rest on, and it is exported so that the same figure
+can be obtained for an aggregation of your own.
+<code>se_area_weighted_grouped()</code> does the same within groups.</p>
+</div>
+<div id="a-species-key-for-the-field" class="section level3">
+<h3>6.6 A species key for the field</h3>
+<p><em>FeNEU</em> attaches <em>ForestElementsR</em>, so its functions
+are available directly after <code>library(FeNEU)</code>. One of them is
+worth a section of its own here, because it answers a question that
+comes up on every survey: which code stands for which species.
+<code>fe_species_get_field_table()</code> returns a coding as a compact
+key, one row per code, with the scientific, English and German name
+beside it:</p>
+<div class="sourceCode" id="cb36"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" tabindex="-1"></a><span class="fu">fe_species_get_field_table</span>(<span class="st">&quot;bavrn_state&quot;</span>) <span class="sc">|&gt;</span> <span class="fu">head</span>(<span class="dv">10</span>)</span>
+<span id="cb36-2"><a href="#cb36-2" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 6</span></span>
+<span id="cb36-3"><a href="#cb36-3" tabindex="-1"></a><span class="co">#&gt;    species_id name_sci                   name_eng         name_ger level is_tree</span></span>
+<span id="cb36-4"><a href="#cb36-4" tabindex="-1"></a><span class="co">#&gt;    &lt;chr&gt;      &lt;chr&gt;                      &lt;chr&gt;            &lt;chr&gt;    &lt;int&gt; &lt;lgl&gt;  </span></span>
+<span id="cb36-5"><a href="#cb36-5" tabindex="-1"></a><span class="co">#&gt;  1 10         Picea abies                Norway spruce    Fichte       0 TRUE   </span></span>
+<span id="cb36-6"><a href="#cb36-6" tabindex="-1"></a><span class="co">#&gt;  2 11         Picea omorika              Serbian spruce   Omorika…     0 TRUE   </span></span>
+<span id="cb36-7"><a href="#cb36-7" tabindex="-1"></a><span class="co">#&gt;  3 12         Picea sitchensis           Sitka spruce     Sitka-F…     0 TRUE   </span></span>
+<span id="cb36-8"><a href="#cb36-8" tabindex="-1"></a><span class="co">#&gt;  4 20         Pinus sylvestris           Scots pine       Kiefer       0 TRUE   </span></span>
+<span id="cb36-9"><a href="#cb36-9" tabindex="-1"></a><span class="co">#&gt;  5 21         Pinus strobus              eastern white p… Strobe       0 TRUE   </span></span>
+<span id="cb36-10"><a href="#cb36-10" tabindex="-1"></a><span class="co">#&gt;  6 22         Pinus nigra                black pine       Schwarz…     0 TRUE   </span></span>
+<span id="cb36-11"><a href="#cb36-11" tabindex="-1"></a><span class="co">#&gt;  7 23         Pinus mugo subsp. uncinata Swiss mountain … Spirke       0 TRUE   </span></span>
+<span id="cb36-12"><a href="#cb36-12" tabindex="-1"></a><span class="co">#&gt;  8 24         Pinus cembra               Arolla pine      Zirbe        0 TRUE   </span></span>
+<span id="cb36-13"><a href="#cb36-13" tabindex="-1"></a><span class="co">#&gt;  9 25         Pinus mugo subsp. mugo     dwarf maountain… Latsche      0 TRUE   </span></span>
+<span id="cb36-14"><a href="#cb36-14" tabindex="-1"></a><span class="co">#&gt; 10 30         Abies alba                 silver fir       Tanne        0 TRUE</span></span></code></pre></div>
+<p>This is the view to print for field work, and it is not the same as
+the full coding table: that one carries one row per elementary species,
+so a group code appears once per member species. All three name columns
+are returned whatever <code>options(&quot;fe_spec_lang&quot;)</code> is set to.
+The rows come in the coding’s own order, the finest codes first and the
+group codes after; <code>level</code> says which is which (0 = finest)
+and <code>is_tree</code> marks the categories that are not trees.</p>
+<p>The function works for every coding <em>ForestElementsR</em>
+implements, so the key can be produced for whichever coding an inventory
+is recorded in.</p>
+</div>
+<div id="reference-data" class="section level3">
+<h3>6.7 Reference data</h3>
+<p>The species codings and the yield tables themselves belong to
+<em>ForestElementsR</em>; see
+<code>vignette(&quot;tree_species_codings&quot;, package = &quot;ForestElementsR&quot;)</code>
+and
+<code>vignette(&quot;yield_tables&quot;, package = &quot;ForestElementsR&quot;)</code>.</p>
+<p><em>FeNEU</em> adds one dataset of its own,
+<code>ytables_bavrn_state_var_1_feneu</code>: the yield-table assignment
+of <a href="#increment">section 5.2</a>, which covers all current
+<code>bavrn_state</code> species codes.</p>
+<p><code>?data_examples_overview</code> lists the example datasets used
+throughout this vignette, at all three levels of processing.</p>
+</div>
+</div>
+<div id="acknowledgments" class="section level2">
+<h2>Acknowledgments</h2>
+<p>The authors would like to thank the Bavarian Ministry for Nutrition,
+Agriculture, Forestry, and Tourism for funding the projects <em>FeNEU:
+Ein innovatives Instrument für die forstliche Planung in Bayern
+(E062)</em> and <em>Ertragskundliche Betreuung der langfristigen
+Versuche (W007)</em>. We also wish to thank our colleagues at the
+Bayerische Staatsforsten (BaySF) for their friendly cooperation. The
+development of <em>FeNEU</em> has benefited especially from exchange
+with experienced practitioners. We sincerely thank Sabine Andersen,
+Stefan Esser, Markus Fritsch, Christian Winter, Hans Stark, and Daniel
+Kraus, representing a much larger group. Among them is Rainer Dürr,
+author of the <em>Silvarith</em> software, who sadly died before the
+release of <em>FeNEU</em>.</p>
+</div>
+<div id="references" class="section level2 unnumbered">
+<h2 class="unnumbered">References</h2>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-biber_torano_2026" class="csl-entry">
+Biber, Peter, and Astor Toraño Caicoya. 2026. <em>ForestElementsR: Data
+Structures and Functions for Working with Forest Data</em>. <a href="https://doi.org/10.32614/CRAN.package.ForestElementsR">https://doi.org/10.32614/CRAN.package.ForestElementsR</a>.
+</div>
+<div id="ref-bwi3_methods_2017" class="csl-entry">
+Riedel, T., P. Hennig, F. Kroiher, H. Polley, F. Schmitz, and
+Schwitzgebel F. 2017. <em>Die Dritte Bundeswaldinventur (BWI 2012).
+Inventur- Und Auswertungsmethoden</em>. Thuenen Institut fuer
+Waldoekosysteme.
+</div>
+</div>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

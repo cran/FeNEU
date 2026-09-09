@@ -1,0 +1,113 @@
+---
+params:
+  x:
+  title:
+  dbh_scale:
+title: "\\fontsize{12}{14}\\selectfont Stichprobenpunkt `r params$title`"
+classoption:
+  - twocolumn
+  - a4paper
+geometry:
+  - landscape
+  - margin=1in
+fontsize: 11pt
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+
+x <- params$x
+
+# Filter dead/removal trees
+if ("removal" %in% names(x$trees)) {
+  live_ids <- x$trees$tree_id[!x$trees$removal]
+  x$trees         <- x$trees[!x$trees$removal, , drop = FALSE]
+  x$tree_positions <- x$tree_positions[
+    x$tree_positions$tree_id %in% live_ids, , drop = FALSE]
+}
+```
+
+\vspace*{\fill}
+
+```{r table}
+oo <- options(knitr.kable.NA = "")
+
+tp <- x$tree_positions |>
+  sf::st_drop_geometry() |>
+  dplyr::select(tree_id, R, angle) |>
+  dplyr::left_join(
+    x$trees |>
+      dplyr::select(tree_id, species_id, dbh_cm, age_yr, height_m)
+  ) |>
+  dplyr::rename(
+    Nr. = tree_id, Baumart = species_id, BHD = dbh_cm, Winkel = angle,
+    Entfernung = R, Alter = age_yr, Höhe = height_m
+  ) |>
+  dplyr::mutate(Baumart = stringr::word(format(Baumart, spec_lang = "ger"), 1))
+
+knitr::kable(tp, "latex")
+
+options(oo)
+```
+
+\vspace*{\fill}
+
+\newpage
+
+\vspace*{\fill}
+
+```{r plot, results = "asis"}
+oo <- options(fe_spec_lang = "ger")
+plotting_set <- merge(x$tree_positions, x$trees)
+x_plot <- plot(x, dbh_scale = params$dbh_scale, show_labels = FALSE)
+final_plot <- x_plot +
+  ggplot2::ggtitle("") +
+  ggplot2::theme(
+    axis.title.x    = ggplot2::element_blank(),
+    axis.title.y    = ggplot2::element_blank(),
+    axis.text.x     = ggplot2::element_text(angle = 315),
+    legend.position = "none"
+  ) +
+  ggrepel::geom_text_repel(data = plotting_set,
+    ggplot2::aes(
+      x = sf::st_coordinates(.data$geometry)[, 1],
+      y = sf::st_coordinates(.data$geometry)[, 2],
+      label = paste0(.data$tree_id, ": ",
+                     stringr::str_sub(format(.data$species_id),
+                                      start = 1, end = 2))
+    ),
+    nudge_x = 1.8, nudge_y = 0.1, size = 2.5, force = 2.0,
+    segment.size = 0, arrow = NULL
+  ) +
+  ggrepel::geom_text_repel(data = plotting_set,
+    ggplot2::aes(
+      x = sf::st_coordinates(.data$geometry)[, 1],
+      y = sf::st_coordinates(.data$geometry)[, 2],
+      label = .data$dbh_cm
+    ),
+    nudge_x = 1., nudge_y = -0.60, size = 2, force = 2.0,
+    segment.size = 0, arrow = NULL
+  ) +
+  ggrepel::geom_text_repel(data = plotting_set,
+    ggplot2::aes(
+      x = sf::st_coordinates(.data$geometry)[, 1],
+      y = sf::st_coordinates(.data$geometry)[, 2],
+      label = .data$R
+    ),
+    nudge_x = 1., nudge_y = -1.20, size = 2, force = 2.0,
+    segment.size = 0, arrow = NULL
+  ) +
+  ggrepel::geom_text_repel(data = plotting_set,
+    ggplot2::aes(
+      x = sf::st_coordinates(.data$geometry)[, 1],
+      y = sf::st_coordinates(.data$geometry)[, 2],
+      label = .data$angle
+    ),
+    nudge_x = 1., nudge_y = -1.70, size = 2, force = 2.0,
+    segment.size = 0, arrow = NULL
+  )
+
+fig_file <- normalizePath(tempfile(fileext = ".pdf"), winslash = "/", mustWork = FALSE)
+ggplot2::ggsave(fig_file, plot = final_plot, width = 4.5, height = 4.5, device = "pdf")
+cat(sprintf("\\includegraphics[width=\\linewidth]{%s}\n\\vspace*{\\fill}\n", fig_file))
+options(oo)
+```

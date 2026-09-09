@@ -1,0 +1,385 @@
+---
+title: "Input Data Formats in FeNEU"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Input Data Formats in FeNEU}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  message  = FALSE,
+  warning  = FALSE
+)
+```
+
+```{r setup, message = FALSE}
+library(FeNEU)
+```
+
+## 1 Overview
+
+This vignette is the reference for the data *FeNEU* reads. The
+[main vignette](FeNEU.html) shows how the import chain is used and what makes it
+robust; here we define each format down to its columns and units, and import
+every one of them from the example data that come with the package.
+
+*FeNEU* distinguishes two inventory **types**: *sample* inventories laid out on
+concentric circles, typically arranged in a grid, and *stand-wise* inventories 
+sampled with angle-count (relascope) points. For each type the data pass through
+up to three **stages** -- raw field data, a standardised *preprocessed* intermediate, 
+and the finished `fe_inventory` object. The import is split accordingly into a 
+`*_raw_to_pre()` converter and a `*_pre_to_fe_inventory()` reader, and you may 
+enter at either level:
+
+```
+  stage          sample inventory, concentric circles    stand-wise inventory, relascope
+  -------------------------------------------------------------------------------------
+  raw            Format 1            Format 2                 Format 1
+                     |                   |                        |
+                     v                   v                        v
+                    import_sample_concentric_            import_standwise_relascope_
+          format1_raw_to_pre() format2_raw_to_pre()      format1_raw_to_pre()
+                     |                   |                        |
+                     v                   v                        v
+  pre             --- BaySF style format ---             Silvarith style format
+                  (five tab-delimited files)             (one file, WZP_Daten.txt)
+                     |                                            |
+                    import_sample_concentric_            import_standwise_relascope_
+                    pre_to_fe_inventory()                pre_to_fe_inventory()
+                     |                                            |
+                     v                                            v
+  fe_inventory   ------------------  fe_inventory  ---------------------
+```
+
+| Type | Raw format | `*_raw_to_pre()` | Preprocessed form |
+|---|---|---|---|
+| sample, concentric | Format 1 | `import_sample_concentric_format1_raw_to_pre()` | BaySF style (5 files) |
+| sample, concentric | Format 2 | `import_sample_concentric_format2_raw_to_pre()` | BaySF style (5 files) |
+| stand-wise, relascope | Format 1 | `import_standwise_relascope_format1_raw_to_pre()` | Silvarith style (`WZP_Daten.txt`) |
+
+The supported combinations are *sample × concentric* and *stand-wise ×
+relascope*; the design is open for further methods. Every file is tab-delimited
+plain text (`.txt`). Decimal numbers may use a point or a comma -- *FeNEU* reads
+each file as text and parses only the columns it uses, so a comma decimal is
+never mistaken for a thousands separator (see the main vignette for the encoding
+and plausibility handling this step performs).
+
+Species are given as integer codes of the `bavrn_state` coding of
+*ForestElementsR* (`vignette("tree_species_codings", package =
+"ForestElementsR")`; the main vignette shows `fe_species_get_field_table()` for
+a printable key). The tables below name the columns each format consumes; the
+function help pages (`?import_sample_concentric_format1_raw_to_pre` and the
+others) carry the fine print -- the rules of which columns may be left empty and
+which not, and the default file name each importer expects. A missing value is
+simply an empty field. Any column not listed is ignored, so extra columns never
+disturb an import. All example data are described in `?data_examples_overview`.
+
+
+## 2 Sample inventories: Format 1 and Format 2
+
+*FeNEU* currently supports two raw data formats for sample inventories with
+concentric circles. The two grew up in parallel with *FeNEU* itself and have no
+fundamental differences in content -- they simply reflect different user
+preferences for how the data are exported. We call them *Format 1* and
+*Format 2*. Both produce the same BaySF-style preprocessed files (Section 3), so
+everything downstream is identical.
+
+### 2.1 Format 1
+
+*FeNEU*'s own raw format. Column names are in **English**, with the German
+equivalents accepted as aliases (renamed silently before validation), and are
+**case-insensitive**. Format 1 reads three files -- a tree list, an
+inventory-point file, and an optional small-tree file.
+
+**Tree list.** One row per tree, both living and dead. Required:
+
+| Column | Alias | Unit / values | Meaning |
+|---|---|---|---|
+| `plot_id` | | | plot identifier; matches the point file |
+| `dbh` | `bhd` | cm, ≥ 0 | diameter at breast height (0 for tally records) |
+| `height` | `hoehe` | m, empty if unmeasured | total tree height |
+| `species` | `baumart` | BaySF code | species (or an abbreviation, see below) |
+| `angle` | `winkel` | degrees, 0–360 | azimuth centre → stem (empty on the innermost circle) |
+| `distance` | `entfernung` | m, > 0 | horizontal distance centre → stem (same rule) |
+| `layer` | `schicht` | 1–6 | 1 main stand, 2 understorey, 3 advance regeneration, 4 residual stand, 5 overstorey, 6 veteran |
+| `mortality` | `mortal` | 0/1/2 | 0 alive, 1 recently dead, 2 older snag |
+| `count` | `anzahl` | integer | trees represented by the record (> 1 for tallies) |
+
+Optional: `age` (`alter`, years -- the **stand** age, stored redundantly per
+tree row; missing or incomplete age limits which analyses are possible and
+raises a warning on import), and `tree_nr` (`baumnummer`), which may be supplied
+but is never consumed -- tree identification rests on the coordinates alone.
+
+**Inventory points.** One row per plot. Required:
+
+| Column | Alias | Unit | Meaning |
+|---|---|---|---|
+| `plot_id` | | | plot identifier; matches the tree list |
+| `coord_x` | | CRS units | plot-centre easting / longitude |
+| `coord_y` | | CRS units | plot-centre northing / latitude |
+| `rep_area` | `repfl` | ha, > 0 | area this plot represents |
+| `slope` | `neigung` | **percent**, ≥ 0 | terrain slope (0 for level ground) |
+
+Optional: `coord_sys` (the coordinate reference system, one value for the whole
+file -- otherwise given by the `coord_sys` argument), and `survey_date`
+(`erfdat`, of which only the year is kept -- or the year is set directly with
+the `inventory_year` argument).
+
+**Small trees** (optional file). Small trees are below the caliper threshold,
+often below breast height, and are recorded as un-located tally records.
+Required columns are `plot_id`, `dbh` (`bhd`), `height` (`hoehe`), `species`
+(`baumart`) and `count` (`anzahl`); `layer` and `age` are optional. Dedicated
+regeneration analyses are not available yet. Until they are, every small tree
+with a **DBH greater than zero** still enters the ordinary evaluations (it joins
+the regular tree records), while a record with `dbh = 0` is carried in the
+`small_trees` slot for later.
+
+The geometry of the concentric circles is not part of the field data -- it
+belongs to the inventory design and must be supplied to the converter, as a pair
+of vectors giving the lower DBH threshold (cm) and the radius (m) of each circle,
+or as a circle-definition file (useful when the design varies across the
+inventory; see `?import_sample_concentric_format1_raw_to_pre`). These radii
+determine every representation factor, so a wrong geometry scales every
+per-hectare figure. Example ex1 comes in Format 1; its design is
+`dbh_cm_from = c(0, 12, 30, 48)` with `radiuses_m = c(2.82, 5.64, 11.28, 17.84)`:
+
+```{r format1}
+raw1 <- system.file("extdata", "data_ex1_sample_raw", package = "FeNEU")
+dir(raw1)
+
+pre1 <- file.path(tempdir(), "ex1_pre")
+
+report1 <- import_sample_concentric_format1_raw_to_pre(
+  input_path           = raw1,
+  output_dir           = pre1,
+  small_trees_filename = "Verjuengung",
+  dbh_cm_from          = c(0, 12, 30, 48),
+  radiuses_m           = c(2.82, 5.64, 11.28, 17.84),
+  coord_sys            = "gk4",
+  species_guess        = TRUE
+)
+
+report1$ok
+dir(pre1)
+```
+
+`species_guess = TRUE` was used here because ex1 records species as text
+abbreviations rather than codes. It is a stopgap for real-world data: it resolves
+abbreviations against a reference list, and `report1$species_mapping` shows every
+resolution so it can be checked rather than trusted. Supplying the proper numeric
+codes is the recommended path.
+
+### 2.2 Format 2
+
+A multi-table export that defines nine source tables. This converter reads the
+two that carry the core inventory -- the tree list (`02_probekreis.txt`) and the
+inventory-point / coordinate table (`01_root_entity.txt`), which are also the
+default file names. The remaining tables (tree properties, regeneration, dead
+wood) are not read yet.
+
+Format 2 keeps its own native column names and encodes the same information as
+Format 1 in **different units**: DBH in millimetres, height in decimetres,
+distance in centimetres, and the tree position as a **back azimuth** whose unit
+is chosen per record.
+
+**Tree list** (`02_probekreis.txt`). Required:
+
+| Column | Unit / values | Meaning |
+|---|---|---|
+| `koord` | | plot identifier; matches the point file |
+| `ba_fe` | BaySF code | species |
+| `bhd` | **mm** → cm | diameter at breast height |
+| `hoehe_1` | **dm** → m | total tree height (empty if unmeasured) |
+| `pol_entf` | **cm** | horizontal distance from plot centre |
+| `pol_wink`, `rueckazimut_gon`, `rueckazimut_grad`, `einheit_azimut` | | tree azimuth (see below) |
+| `bestku` | Format-2 layer code | stand layer, remapped to BaySF (see below) |
+
+The **azimuth unit is not fixed**. `pol_wink` (degrees) is used when present;
+otherwise the back azimuth is read from the column that `einheit_azimut`
+declares -- `1` means `rueckazimut_gon` (gon, converted to degrees), `2` means
+`rueckazimut_grad` (degrees). `einheit_azimut` is authoritative: if it does not
+match the populated column, the tree is treated as having no usable position
+rather than reading a value in the wrong unit.
+
+The **stand-layer code `bestku` differs from the BaySF coding** and is remapped
+on import. The same number means different things in the two codings, so this
+matters:
+
+| Format 2 (`bestku`) | → | BaySF |
+|---|---|---|
+| 1 Hauptschicht | → | 1 main stand |
+| 2 Zwischenschicht | → | 2 understorey |
+| 3 Unterschicht | → | 2 understorey |
+| 4 Vorausverjüngung | → | 3 advance regeneration |
+| 5 Überhälter/Nachhiebsrest | → | 5 overstorey |
+
+Optional tree columns are `alter_ba` (stand age) and `baumnummer` (not consumed).
+Format 2 records **living trees only**; mortality is set to 0 for every record.
+
+**Inventory points** (`01_root_entity.txt`). Required: `koord`,
+`lage_probekreismittelpunkt_x` / `_y` (plot-centre coordinates), and `repfl`
+(represented area, ha). Optional: `date_created` (survey date, year kept),
+`lage_probekreismittelpunkt_srs` (an EPSG declaration of the coordinate system,
+as the native export writes it), and `neigung` (slope, percent -- absent in most
+Format-2 exports, in which case the slope defaults to 0 with a warning).
+
+Example ex2 comes in Format 2; its points carry their own `srs`, so no
+`coord_sys` argument is needed. Its `date_created` uses a day-month-year format
+that cannot be read unambiguously, so we set the year directly with
+`inventory_year` -- the argument that overrides the date column for exactly this
+case:
+
+```{r format2}
+raw2 <- system.file("extdata", "data_ex2_sample_raw", package = "FeNEU")
+dir(raw2)
+
+pre2 <- file.path(tempdir(), "ex2_pre")
+
+report2 <- import_sample_concentric_format2_raw_to_pre(
+  input_path     = raw2,
+  output_dir     = pre2,
+  dbh_cm_from    = c(0, 12, 30),
+  radiuses_m     = c(2, 6.31, 12.62),
+  inventory_year = 2025
+)
+
+report2$ok
+dir(pre2)
+```
+
+
+## 3 Preprocessed sample data: BaySF style
+
+Both concentric converters write the same preprocessed form: five tab-delimited
+files in the Bavarian State Forest (BaySF) style. A user who already holds data
+in this shape -- from the raw import, from another program, or from an inventory
+service provider -- starts here.
+
+| File | Holds |
+|---|---|
+| `fdinvbhd.txt` | one row per tree: DBH, height, position, mortality |
+| `fdinvba.txt` | per tree: species, stand age, stand layer |
+| `fdinvkrs.txt` | per plot: coordinates, slope, represented area, circle class |
+| `fcbestku.txt` | the stand-layer definition |
+| `fdvikrs.txt` | the circle definition (DBH threshold and area per circle) |
+
+`import_sample_concentric_pre_to_fe_inventory()` reads them and builds the
+`fe_inventory` of `fe_ccircle_spatial` plots. The package ships the preprocessed
+files of ex3:
+
+```{r baysf_pre}
+pre3 <- system.file("extdata", "data_ex3_sample_pre", package = "FeNEU")
+dir(pre3)
+
+inv3 <- import_sample_concentric_pre_to_fe_inventory(pre3)
+inv3
+```
+
+The plot centres are stored in the `gauss_rw` / `gauss_hw` columns of
+`fdinvkrs.txt`. That name is historical: modern BaySF exports store **UTM32**
+(ETRS89 / UTM zone 32N) values in them, so *FeNEU* never infers the coordinate
+system from the column name. Files it writes itself record the real system in a
+`coord_sys` column and are self-describing (ex3 above needed no argument); a
+genuine BaySF export has no such column, and you pass `coord_sys` explicitly --
+for current data almost always `"utm32"`. An assumption about coordinates is a
+particularly expensive way to be wrong, so the reader asks rather than guesses.
+
+
+## 4 Stand-wise relascope inventories
+
+A stand-wise inventory samples several relascope points within each pre-defined
+stand -- enough to represent the stand adequately. Its import chain has the same
+two stages as the sample chain. The preprocessed form is a single file,
+`WZP_Daten.txt`, in the Silvarith style; the raw converter produces it from a
+Silvarith-style export, and a user who already holds a `WZP_Daten.txt` starts at
+Section 4.2.
+
+### 4.1 Raw: Silvarith style
+
+`import_standwise_relascope_format1_raw_to_pre()` reads a Silvarith-style raw
+file -- by default `EingabedatenGesamt.txt` -- validates it, collecting every
+problem rather than stopping at the first, and writes the preprocessed
+`WZP_Daten.txt`. The Silvarith export is a German-locale file, with umlaut
+headers and `DD.MM.YYYY` dates; its decimals are written with a comma, though a
+point is read just as well. Each row represents a cohort of trees at one sample
+point in one stand, defined by species and stand layer. Required columns (after
+lower-casing the header):
+
+| Column | Renamed to | Unit / values | Meaning |
+|---|---|---|---|
+| `STPNr` | `stpnr` | | angle-count point number within the stand |
+| `lfdNrSTP` | `lfd_nr` | | record number within the point |
+| `Bestand` | `bestand` | | stand identifier |
+| `Best.-Fläche` | `bestflaeche` | ha | stand area |
+| `ZF` | `zaehlfaktor` | | angle-count factor |
+| `BA` | `baumart` | BaySF code | species |
+| `Alter` | | years | stand age |
+| `Schicht` | | 0–3 | stand layer (see below) |
+| `ANZ.` | `anzahl` | integer | tree count of the record |
+| `BHD` | | cm | mean diameter |
+| `Höhe` | `hoehe` | m | mean height |
+| `Stichtag` | | `DD.MM.YYYY` | survey date |
+
+`Schicht` codes the stand layer: `0` = main stand (Hauptschicht), `1` = harvest
+remnants (Nachhiebsreste), `2` = veterans (Überhälter) -- `1` and `2` both fall
+into the remnant/veteran layer -- and `3` = understorey (Unter-/Zwischenschicht).
+
+The validation checks that `BHD` is non-negative, `Schicht` is in `{0, 1, 2, 3}`,
+and `Stichtag` parses; a height above 50 m raises a non-blocking warning. Example
+ex6 comes in this form:
+
+```{r relascope_raw}
+raw6 <- system.file("extdata", "data_ex6_standwise_raw", package = "FeNEU")
+dir(raw6)
+
+pre6 <- file.path(tempdir(), "ex6_pre")
+
+report6 <- import_standwise_relascope_format1_raw_to_pre(
+  input_path = raw6,
+  output_dir = pre6
+)
+
+report6$ok
+dir(pre6)
+```
+
+The example folder also holds `Inventuraufnahmen.txt`; it is not needed yet and
+is reserved for future features.
+
+### 4.2 Preprocessed: WZP_Daten.txt
+
+`WZP_Daten.txt` is the canonical, ASCII / decimal-point form of the same columns.
+`import_standwise_relascope_pre_to_fe_inventory()` reads it and builds the
+`fe_inventory` of `fe_stand` plots. The package ships ex7 at this stage:
+
+```{r relascope_pre}
+pre7 <- system.file("extdata", "data_ex7_standwise_pre", package = "FeNEU")
+dir(pre7)
+
+inv7 <- import_standwise_relascope_pre_to_fe_inventory(pre7)
+inv7
+```
+
+
+## 5 One call for the last step
+
+For code that does not know the inventory type until run time -- a graphical user
+interface on top of *FeNEU* is the typical case -- `read_and_convert_data()`
+covers the *pre → fe_inventory* step for every type and dispatches on its
+`inventory_type` argument:
+
+```{r read_and_convert}
+inv3b <- read_and_convert_data(pre3, inventory_type = "sample_concentric")
+
+isTRUE(all.equal(inv3b, inv3))
+```
+
+It is an expert entry point. For everyday work the two-step route shown above is
+the recommended one: naming the inventory type in the function you call keeps
+both the script and its error messages easy to read.

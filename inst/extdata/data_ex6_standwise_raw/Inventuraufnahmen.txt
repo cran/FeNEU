@@ -1,0 +1,3 @@
+Waldort	Bestandesform	Ø Alter	Nutzungsart	Bemerkung	Bestandes- Fläche	BG	Vorrat (Efm/ha)	(PK = Probekreise) Repräsentativaufnahmen/ Vollaufnahmen 1=VK / 2=WZP/4=fest. PK/5=konz. PK	(Vorrat => Schicht 0 = nur Hauptbestand ohne ÜH, NHR, U/Z, VVJ) Zählbreite bei WZP; max.Kreisflächen bei PK	Anzahl Stichproben	Anzahl STP/ha	Standardfehler-% (Vorrat)
+7- 2- 0- - 0	Kie-Lä-Bu	90	VJT		3,33	0,86	289	2	ZB 4,0	8	2,4	24,4%
+7- 5- 0- - 0	Fi-Kie-Lä	72	VJT		4,91	0,78	344	2	ZB 4,0	9	1,8	10,4%

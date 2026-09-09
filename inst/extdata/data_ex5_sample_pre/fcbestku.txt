@@ -1,0 +1,9 @@
+best_ku	best_ku_l	best_ku_k	best_ku_g	gueltig_id
+0	UG	1	-1	0
+1	OS	1	0	1
+2	US	2	0	2
+3	VVJ	3	0	3
+4	NHR	4	0	4
+5	UEH	4	0	5
+6	ALT	4	0	6
+-1	+++	-1	-1	-1

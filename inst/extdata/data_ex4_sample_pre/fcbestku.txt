@@ -1,0 +1,9 @@
+best_ku	best_ku_l	best_ku_k	best_ku_g	gueltig_id
+ungeschichtet	UG	1	-1	0
+Oberschicht	OS	1	0	1
+Unterstand	US	2	0	2
+Vorausverjuengung	VVJ	3	0	3
+Nachhiebsrest	NHR	4	0	4
+Ueberhaelter	UEH	4	0	5
+Altbaum	ALT	4	0	6
+Abgang Mortal	+++	1	-1	-1

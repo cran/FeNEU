@@ -1,0 +1,254 @@
+---
+params:
+  x:
+  tab_title:
+  type:
+  meta: !r NULL
+title: "\\fontsize{12}{14}\\selectfont Struktur der Totholzvorräte `r params$tab_title`"
+classoption: 
+  - a4paper
+geometry:
+  - landscape
+  - "left=0.5cm,right=0.5cm,top=1.cm, bottom=1.2cm"
+fontsize: 10pt
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r meta-block, echo=FALSE, results="asis"}
+if (!is.null(params$meta)) {
+  m <- params$meta
+  fmt_ha <- function(x) format(round(x), big.mark = ".", decimal.mark = ",",
+                                scientific = FALSE)
+  parts <- character(0)
+  if (!is.null(m$year))    parts <- c(parts, paste0("\\textbf{Inventurjahr:} ",      as.integer(m$year)))
+  if (!is.null(m$area_ha)) parts <- c(parts, paste0("\\textbf{Gesamtfl\\\"ache:} ", fmt_ha(m$area_ha), " ha"))
+  if (!is.null(m$n_plots)) parts <- c(parts, paste0("\\textbf{Inventurpunkte:} ",   as.integer(m$n_plots)))
+  if (length(parts) > 0)
+    cat("\\begin{center}\\small ", paste(parts, collapse = "\\qquad "), "\\end{center}\\vspace{-0.5em}\n", sep = "")
+}
+```
+
+```{r, echo=FALSE, message=FALSE}
+
+oo <- options(knitr.kable.NA = "", fe_spec_lang = "ger")
+
+x <- params$x
+
+# ------------ Recode Zustand and species groups -------------------
+
+x <- x |>
+  dplyr::mutate(
+    zustand = dplyr::case_when(
+      dw_state == 92 ~ "Liegendes Totholz",
+      dw_state %in% c(90, 91) ~ "Stehendes Totholz",
+      dw_state == 100 ~ "Gesamt",
+      TRUE ~ as.character(dw_state)
+    ),
+    species_group = dplyr::case_when(
+      species_group == 0   ~ "nz",
+      species_group == 1   ~ "NdH",
+      species_group == 2   ~ "Ei",
+      species_group == 3   ~ "üLbH",
+      species_group == 999 ~ "Summe",
+      TRUE ~ as.character(species_group)
+    )
+  )
+
+# --- enforce Zustand order ---
+zustand_order <- c("Liegendes Totholz", "Stehendes Totholz", "Gesamt")
+x$zustand <- factor(x$zustand, levels = zustand_order)
+
+# --- enforce species group order ---
+species_order <- c("nz", "NdH", "Ei", "üLbH", "Summe")
+x$species_group <- factor(x$species_group, levels = species_order)
+
+# --- sort table ---
+x <- x |>
+  dplyr::arrange(zustand, species_group)
+
+# vertical grouping index (Zustand bands)
+vertical_index_dat <- x |>
+  dplyr::group_by(zustand) |>
+  dplyr::summarise(n = dplyr::n(), .groups = "drop")
+
+vertical_index <- vertical_index_dat$n
+names(vertical_index) <- vertical_index_dat$zustand
+
+# extract global totals for subtitle (they should be constant)
+total_n_points <- unique(x$n_points_tot)
+total_area_ha  <- unique(x$area_ha_tot)
+
+if (length(total_n_points) > 1 || length(total_area_ha) > 1) {
+  warning("n_points_tot or area_ha_tot vary by row; using first value for header subtitle.")
+}
+total_n_points <- total_n_points[1]
+total_area_ha  <- total_area_ha[1]
+
+# remove state & global total columns from table body
+x <- x |>
+  dplyr::ungroup() |>
+  dplyr::select(-dw_state, -zustand, -n_points_tot, -area_ha_tot)
+
+# ------------ Identify diameter class columns -----------------------
+
+all_names <- names(x)
+
+# diameter-class columns end with "(a,b]"
+is_diam_col <- grepl("_\\([^]]+\\]$", all_names)
+diam_names  <- all_names[is_diam_col]
+
+# extract distinct intervals (e.g. "20,35", "35,46", "46,999")
+get_interval <- function(nm) sub(".*_\\(([^]]+)\\]$", "\\1", nm)
+intervals <- unique(vapply(diam_names, get_interval, FUN.VALUE = character(1)))
+
+# order by lower bound
+lower <- as.numeric(sub(",.*", "", intervals))
+intervals_ord <- intervals[order(lower)]
+
+# columns per interval
+class_cols <- lapply(intervals_ord, function(iv) {
+  grep(paste0("_\\(", iv, "\\]$"), all_names, value = TRUE)
+})
+names(class_cols) <- intervals_ord
+
+# ------------ Reorder columns: BaGr, diam blocks, trailing ----------
+
+id_cols    <- c("species_group")
+other_cols <- setdiff(all_names, c(id_cols, diam_names))
+
+ordered_cols <- c(
+  id_cols,
+  unlist(class_cols, use.names = FALSE),
+  other_cols
+)
+
+x <- x[, ordered_cols, drop = FALSE]
+
+# ------------ Shorten metric names (keep interval in header band) ----
+
+short_metric_name <- function(nm) {
+  m <- regexec("^(v_m3|v_m3_pct_state|v_m3_pct_species|n_stems|n_pct_state|n_pct_species)_\\([^]]+\\]$", nm)
+  parts <- regmatches(nm, m)[[1]]
+  if (length(parts) == 0) return(nm)
+
+  metric <- parts[2]
+
+  metric_short <- switch(metric,
+    "v_m3"             = "fm",
+    "v_m3_pct_state"   = "fm-%Ges",
+    "v_m3_pct_species" = "fm-%Ba",
+    "n_stems"          = "N",
+    "n_pct_state"      = "N-%Ges",
+    "n_pct_species"    = "N-%Ba",
+    metric
+  )
+
+  metric_short
+}
+
+new_names <- vapply(names(x), short_metric_name, FUN.VALUE = character(1))
+
+# nice label for BaGr column
+new_names[new_names == "species_group"] <- "BaGr"
+
+# totals in Summe block
+new_names[new_names == "total_v_m3"]    <- "fm"
+new_names[new_names == "total_n_stems"] <- "N"
+new_names[new_names == "n_points"]      <- "Anz.Pkt"
+new_names[new_names == "area_ha"]      <- "Fläche(ha)"
+
+names(x) <- new_names
+
+# ------------ Header bands ------------------------------------------
+
+# counts per interval (use class_cols lengths)
+len_per_interval <- vapply(class_cols, length, integer(1))
+
+# BaGr is the only ID column now
+n_id    <- 1
+n_diam  <- length(diam_names)
+n_other <- length(other_cols)
+
+# outer band: BaGr | all diam cols | trailing
+header_outer <- c(
+  n_id,
+  n_diam,
+  n_other
+)
+names(header_outer) <- c(
+  " ",
+  "Durchmesserklassen",
+  " "
+)
+
+# inner band: BaGr | per interval | trailing (Summe with subtitle)
+interval_labels <- vapply(intervals_ord, function(iv) {
+  lo <- sub(",.*", "", iv)
+  hi <- sub(".*,", "", iv)
+  if (hi == "999") {
+    paste0(">= ", lo, " cm")
+  } else {
+    paste0(lo, "-", hi, " cm")
+  }
+}, FUN.VALUE = character(1))
+
+
+
+header_inner <- c(
+  n_id,
+  len_per_interval,
+  n_other
+)
+
+summe_label = "Summe"
+
+
+names(header_inner) <- c(
+  " ",
+  interval_labels,
+  summe_label
+)
+# total number of columns in the table body
+
+header_top <- ncol(x)
+
+
+top_label <- sprintf(
+  "Punkte mit Totholz = %s, Rep. Fläche mit Totholz = %s ha",
+  format(total_n_points, big.mark = ".", decimal.mark = ","),
+  format(total_area_ha, big.mark = ".", decimal.mark = ",")
+)
+
+names(header_top) <-  c(
+  top_label
+)
+# ------------ Render table --------------------------------------
+
+knitr::kable(
+  x,
+  booktabs    = TRUE,
+  longtable   = TRUE,
+  digits      = 1,
+  format.args = list(scientific = FALSE),
+  align       = "r"
+) |>
+  kableExtra::add_header_above(header_inner) |>
+  kableExtra::add_header_above(header_outer) |>
+  kableExtra::add_header_above(header_top) |>
+  kableExtra::pack_rows(
+    index        = vertical_index,
+    hline_before = TRUE,
+    hline_after  = FALSE
+  ) |>
+  kableExtra::kable_styling(
+    font_size    = 6,
+    latex_options = "repeat_header"
+  ) |> 
+  kableExtra::column_spec(2:(1 + n_diam), width = "0.7cm")
+
+options(oo)
+
+
+```

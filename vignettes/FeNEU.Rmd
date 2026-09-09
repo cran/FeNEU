@@ -1,0 +1,1008 @@
+---
+title: "The FeNEU Package - an Introduction"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{The FeNEU Package - an Introduction}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+bibliography: REFERENCES.bib
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment  = "#>",
+  fig.width  = 6.5,
+  fig.height = 4.5,
+  message = FALSE,
+  warning = FALSE
+)
+```
+
+```{r setup, message = FALSE}
+library(FeNEU)           # Attach FeNEU
+library(ForestElementsR) # FeNEU builds on it, see the note below
+library(dplyr)           # used in the code examples below
+
+options(fe_spec_lang = "eng") # display species names in English
+```
+
+## 1 Introduction
+
+*FeNEU* is an R package for evaluating inventory data from larger forest 
+management units in order to support professional forest planning in practice. 
+The package is designed to cover sample inventories as well as stand-wise forest
+inventories, and it is by design open for new data sources and evaluation 
+methods. This first version does not claim to be able to do "everything" but
+provides a first reliable collection of central functions and workflows; i.e.
+a solid fundament, on which we can build up further development. *FeNEU* makes
+extensive use of the objects and functions provided by the package 
+[*ForestElementsR*](https://CRAN.R-project.org/package=ForestElementsR)
+[@biber_torano_2026]. We recommend attaching that package alongside *FeNEU*, as
+we do in the setup above. *FeNEU* calls it internally either way, but the
+inventory plots themselves are *ForestElementsR* objects, and the methods that
+display and plot them become available only once the package is attached.
+
+<div style="border: 2px solid #0073e6; padding: 10px; border-radius: 5px;
+background-color: #f9f9f9;">
+  Before we proceed, let us put out the same **Important Warning** as we do 
+  with *ForestElementsR*:
+  While the functions and objects we provide with *FeNEU* behave
+  exactly as described in the documentation, professional training in the fields
+  of forestry, forest management, forest science is required to apply them
+  correctly and to understand what their output actually means. If you are a
+  hobby forester, you are more than welcome to make use of this package, but
+  be sure to consult a professional before you draw important conclusions from
+  what you get out of your evaluations. We also would like to point out another
+  trivial wisdom that, however, seems to be ignored on a regular basis:
+  *If your data are bad, don't expect to get good results.*
+</div>
+
+Building on the object model and functions provided by 
+[*ForestElementsR*](https://CRAN.R-project.org/package=ForestElementsR), *FeNEU* 
+adds the evaluation and reporting layer that larger forest inventories 
+require: i) Standardised [import of several data formats](#import), 
+ii) [reports of the status quo](#status_quo) covered by an inventory (called 
+'base tables', 'structure tables'), and iii) 
+[increment evaluations and estimates](#increment) with different methods. In 
+addition, the package provides functions for generating 
+[supporting information](#support), e.g. inventory plot information
+sheets for supporting surveys in the field.
+
+This vignette provides a brief overview of the most important concepts of the
+package, how to obtain it and how to work with it. For more detailed information
+we provide two additional vignettes, namely `vignette("data_formats")` and
+`vignette("increment_estimation")`. All examples shown below can be run
+as they stand; they use the example datasets that come with *FeNEU* (see
+`?data_examples_overview` for the full list).
+
+### 1.1 Installation
+
+*FeNEU* itself installs like any other R package:
+
+```{r install_pkg, eval = FALSE}
+install.packages("FeNEU")
+```
+
+### 1.2 Setting up PDF output {#toolchain}
+
+Most evaluations in *FeNEU* end in a formatted PDF report, produced by the
+family of `*_pdf()` functions. These render through **rmarkdown** and
+**kableExtra** on top of two tools that live *outside* R and are therefore not
+installed along with the package: **pandoc** and a **LaTeX** distribution. All
+other functionality of *FeNEU* works without them; only the `*_pdf()` functions
+require them.
+
+To find out where you stand, ask the package:
+
+```{r toolchain_diagnose, message = TRUE}
+diagnose_pdf_toolchain()
+```
+
+The function reports each component separately and, for anything that is
+missing, prints what to do about it. If a LaTeX distribution is what you lack,
+`setup_pdf_toolchain()` installs
+[TinyTeX](https://yihui.org/tinytex/) for you (a small LaTeX distribution of
+about 300 MB; any pre-existing TeX Live or MiKTeX installation works equally
+well and is left untouched). Pandoc must be installed by hand from
+<https://pandoc.org/installing.html> — unless you work in RStudio, which ships
+its own copy and needs no further attention.
+
+Setting this up is a one-time job per machine. Should you forget it, the
+`*_pdf()` functions stop early with a clear message instead of failing later
+somewhere deep inside the rendering toolchain.
+
+## 2 Inventory types and levels of data
+Basically *FeNEU* covers two types of forest inventories, i.e. sample 
+inventories and stand-wise inventories. The former are typically designed as a
+grid overlaying the forest area, and a sample plot positioned at each gridpoint.
+Often, the plot locations are permanently marked in order to allow for repeated
+inventories of the sample plots. Standwise inventories, in contrast, collect
+information based on the pre-defined stands that together make up the forest
+area to be surveyed. Typically, several samples are taken at different positions
+in the stand without keeping their exact location. Usually, the measurements
+are less detailed compared to sample inventories. While both inventory types
+can be done with different methods, sample inventories do very often use
+a concentric circle plot design while stand-wise inventories often use angle
+count samples. Thus, the current version of *FeNEU* supports sample inventories
+with a concentric circle design and stand-wise inventories based on angle count
+sampling. This is, however, not a permanent restriction. In the contrary,
+*FeNEU* is technically not limited to these concepts, and more will be added
+if required.
+
+At the input side *FeNEU* can deal with *raw data* and *preprocessed data*. Raw
+data are data in the shape as they have been collected in the field. Typically,
+at that stage, they are not yet in a format that is ideal for further evaluations,
+and they have undergone no or only sparse plausibility checks. *FeNEU* provides
+functions that read different raw data formats and transform them into
+corresponding preprocessed formats.
+
+Preprocessed data, however, do not have to originate from *FeNEU*. The
+preprocessed formats are defined formats in their own right, and *FeNEU* reads
+them whichever way they were produced — by its own raw data import, by another
+program, or by an inventory service provider who delivers data in that shape
+already. This is why the import is deliberately split into two steps that can
+be used together or separately.
+
+Whichever way the data enter, they all lead to the same destination: an object
+of the class [*fe_inventory*](#fe_inventory). This is the uniform representation 
+in which *FeNEU* holds inventory data internally, no matter which inventory type,
+survey method or input format they came from. Everything the package does
+afterwards works on that object rather than on the original files. The
+consequence is a useful guarantee: once the data have been successfully
+converted into an *fe_inventory* object, all subsequent evaluations are
+technically sound. Whether they are also *sensible* remains, as always, a
+question of the data and of professional judgement.
+
+Currently, *FeNEU* supports three raw data formats and two preprocessed
+formats:
+
+* **Sample inventories with concentric circles.** Two raw data formats,
+  called "Format 1" and "Format 2". Both are converted into the same
+  preprocessed format, which we call the **BaySF style format**, because it
+  follows the conventions of the Bavarian State Forest Enterprise.
+* **Stand-wise inventories with angle-count sampling.** One raw data format,
+  called "Format 1" as well, and one preprocessed format. Both follow the
+  **Silvarith style format**, named after the software whose conventions it
+  borrows.
+
+Note that the format numbers are assigned *within* an inventory type: the
+"Format 1" of the sample inventories has nothing to do with the "Format 1" of
+the stand-wise ones. The complete, column-level definition of all five formats
+— which columns are mandatory, which are optional, and what they mean — is the
+subject of the vignette [Data Formats](data_formats.html).
+
+### 2.1 The fe_inventory class {#fe_inventory}
+Before we get into the workflows, we should mention the central object class in
+*FeNEU*, the S3 class *fe_inventory*. This class defines how a forest inventory 
+is represented in *FeNEU*. Thus, the first and most crucial step when working
+with *FeNEU* is to transform the raw data into an *fe_inventory* object. After
+this has been accomplished, i.e. an *fe_inventory* object has been successfully
+constructed, it is guaranteed that all subsequent evaluations will (technically)
+work. In essence, an *fe_inventory* object is a tibble where every row 
+represents an inventory unit. Let us have a look at an example *fe_inventory*
+object (`data_ex3_sample_fe_inventory`) that comes with the package *FeNEU*.
+Note that this example comprises only ten inventory units (plots) for quick 
+demonstration purposes, while real inventories often come with several hundred 
+up to several thousand plots. Also note that the example 
+*data_ex3_sample_fe_inventory* is realistic, but not real. Do not expect to find
+anything related to the dummy geocoordinates stored in this object. 
+
+```{r fe_inventory_object}
+data_ex3_sample_fe_inventory |> is_fe_inventory()
+data_ex3_sample_fe_inventory
+
+```
+
+The object has three columns, the central column *plot* being the most 
+important, because it contains the inventory units themselves. Each element of 
+this column is an object of *ForestElementsR*'s *fe_stand* family. The column 
+*plot_id* provides a unique id for every inventory unit, and the column 
+*area_rep_ha* shows how much forest area (in hectares) is represented by each 
+inventory unit. Let us check out the first inventory unit:
+
+```{r check_plots}
+inv_unit <- data_ex3_sample_fe_inventory$plot[[1]]
+class(inv_unit)
+names(inv_unit)
+```
+
+An inventory unit is itself a list of slots: an identifier, the survey year,
+the geometry of the sample circles, the positions of the trees, and the two
+tree tables. The heart of it is `trees`, which holds one row per tree:
+
+```{r check_plots_trees}
+inv_unit$trees
+```
+
+We can also obtain a graphical representation of the inventory plot. The
+`dbh_scale` argument draws the stems oversized, which makes them easier to see
+on a small map:
+
+```{r plot_plot, fig.alt = "Map of an inventory plot with concentric circles"}
+plot(inv_unit, dbh_scale = 4)
+```
+
+Two details of this map are worth knowing. The stems are shown in their true
+positions, but only trees from the second circle outwards carry coordinates at
+all — for the innermost circle, positions are not recorded. And that innermost
+circle is not concentric with the other two: it sits five metres north of the
+inventory point. That is the field convention these data follow, not a defect
+of the plot.
+
+
+
+Evidently, this inventory unit is an object of class *fe_ccircle_spatial* which
+represents a sample inventory plot with a concentric circle design. This class
+is a child of *fe_stand_spatial* which in turn is a child of *fe_stand* (see 
+the documentation of *ForestElementsR* for details about these classes). While
+it is not required that all elements of an *fe_inventory* object's plot column
+have exactly the same class, as long as they are children of *fe_stand*, such
+a mix would be quite unusual and is not recommended. Some evaluations provided
+by *FeNEU* are only possible with special subtypes of *fe_inventory* objects.
+E.g. increment calculations from two repeated inventories are currently only 
+possible when both inventories exclusively contain plots with a concentric
+circle design (i.e. *fe_ccircle_spatial* objects). In the following section,
+we will demonstrate how field data can be transformed into an *fe_inventory*
+object.
+
+
+## 3 Importing Data {#import}
+
+Field survey exports rarely come in the exact shape an *fe_inventory* object
+needs. The import therefore proceeds in two steps, each with its own function
+per inventory type. The first step, *raw to pre*, standardises the format; the
+second, *pre to fe_inventory*, builds the object. The following sketch shows
+how the pieces fit together:
+
+```
+  stage          sample inventory, concentric circles    stand-wise inventory, relascope
+  -------------------------------------------------------------------------------------
+  raw            Format 1            Format 2                 Format 1
+                     |                   |                        |
+                     v                   v                        v
+                    import_sample_concentric_            import_standwise_relascope_
+          format1_raw_to_pre() format2_raw_to_pre()      format1_raw_to_pre()
+                     |                   |                        |
+                     v                   v                        v
+  pre             --- BaySF style format ---             Silvarith style format
+                  (five tab-delimited files)             (one file, WZP_Daten.txt)
+                     |                                            |
+                    import_sample_concentric_            import_standwise_relascope_
+                    pre_to_fe_inventory()                pre_to_fe_inventory()
+                     |                                            |  
+                     v                                            v
+  fe_inventory   ------------------  fe_inventory  ---------------------
+```
+
+Read the sketch from top to bottom, but note that you may enter it at either
+level. If your data are already in one of the preprocessed formats, you skip
+the upper half entirely and start at *pre*.
+
+The example datasets that come with *FeNEU* are placed in exactly this scheme.
+Each of them covers the stages that are useful for demonstrating it, which is
+why not every set exists at every stage:
+
+| Set | Inventory type | raw | pre | fe_inventory | Scope |
+|-----|----------------|-----|-----|--------------|-------|
+| ex1 | sample, concentric | Format 1 | | | 10 points |
+| ex2 | sample, concentric | Format 2 | | | 10 points |
+| ex3 | sample, concentric | | yes | yes | 10 points, plus an earlier survey |
+| ex4 | sample, concentric | | yes | yes | 100 points, plus an earlier survey |
+| ex5 | sample, concentric | | yes | yes | 10 simulated points, plus an earlier survey |
+| ex6 | stand-wise, relascope | Format 1 | yes | yes | 2 stands, 17 points |
+| ex7 | stand-wise, relascope | | yes | yes | 2 stands, 15 points |
+
+The sets that carry an earlier survey (ex3, ex4, ex5) are the ones we use for
+increment estimation from repeated inventories later on. Data at the
+*fe_inventory* stage are ready-made R objects, named like
+`data_ex3_sample_fe_inventory`; data at the *raw* and *pre* stages are text
+files, and you obtain the directory holding them with `system.file()`, as the
+examples below show. `?data_examples_overview` describes every set in detail,
+down to the individual file.
+
+### 3.1 From raw data to preprocessed data
+
+The `*_raw_to_pre()` functions read the field data as tab-delimited text files, 
+check them, and write the preprocessed files into a directory of your choosing. 
+They are called for that side effect, and return a short report telling you how 
+it went.
+
+Let us convert the raw stand-wise example (ex6) that comes with the package:
+
+```{r standwise_raw_to_pre}
+raw_dir <- system.file("extdata", "data_ex6_standwise_raw", package = "FeNEU")
+dir(raw_dir)
+
+pre_dir <- file.path(tempdir(), "ex6_pre")
+
+report <- import_standwise_relascope_format1_raw_to_pre(
+  input_path = raw_dir,
+  output_dir = pre_dir
+)
+
+report$ok
+dir(pre_dir)
+```
+
+For a sample inventory it takes a little more, because the geometry of the
+concentric circles is not part of the field data — it belongs to the inventory
+design. It has to be supplied, as a pair of vectors giving the lower DBH
+threshold and the radius of each circle (as we do below). Alternatively, it can 
+also be provided as a text file. This option is especially useful when
+differing circle definitions were applied throughout an inventory (see 
+documentation of the import functions). Get it wrong and every figure is wrong 
+with it, since these radii are what the representation factors of the sampled 
+trees are computed from. The values used below mirror the
+design of inventory example ex1; `?data_examples_overview` lists them for the 
+raw example sets. Here is ex1, in raw Format 1:
+
+```{r sample_raw_to_pre}
+raw_dir_ex1 <- system.file("extdata", "data_ex1_sample_raw", package = "FeNEU")
+dir(raw_dir_ex1)
+
+pre_dir_ex1 <- file.path(tempdir(), "ex1_pre")
+
+report_ex1 <- import_sample_concentric_format1_raw_to_pre(
+  input_path           = raw_dir_ex1,
+  output_dir           = pre_dir_ex1,
+  small_trees_filename = "Verjuengung", # optional
+  dbh_cm_from          = c(0, 12, 30, 48),
+  radiuses_m           = c(2.82, 5.64, 11.28, 17.84),
+  coord_sys            = "gk4",
+  species_guess        = TRUE
+)
+
+report_ex1$ok
+dir(pre_dir_ex1)
+```
+
+Note what the function has to say about these data:
+
+```{r sample_raw_to_pre_warnings}
+report_ex1$warnings
+```
+
+Neither remark is fatal, and both are worth having. The first tells us that we
+will not be able to run some age-based evaluation on this inventory, especially 
+increment estimates with yield tables or single tree growth functions (see 
+vignette [Increment Estimation](increment_estimation.html)). Age information 
+might be incomplete due to errors, but also due to uneven-aged stands
+where an age is not defined. The second is a consequence of `species_guess = TRUE`, 
+which lets the import resolve species abbreviations it does not know verbatim: 
+four of them were matched only by approximate rules, and `report_ex1$species_mapping` 
+shows which, so that the guesses can be checked rather than trusted. We recommend 
+to use the species coding supported by the data format of choice instead of
+species namme abbreviations that have to be guessed afterwards.
+The report is a list with the elements `ok`, `errors`, `warnings` and `paths`.
+It is worth reading rather than discarding: `ok` is `FALSE` whenever the data
+could not be converted, and `warnings` is where the functions tell you what
+they had to do with your data in order to proceed.
+
+Three properties of this step deserve mention, because they are what makes the
+difference between an import that works on real-world data and one that only
+works on tidy data:
+
+**Plausibility checks.** The raw data import is the place where the data are
+scrutinised, and it distinguishes carefully between two kinds of problem. A
+defect that invalidates a whole inventory point — a duplicated plot
+identifier, or a plot whose centre coordinate is missing — stops the import
+immediately and with a clear message, because there is no defensible way to
+carry on. A defect confined to a single tree — a tree above the innermost
+circle that carries no position, a tree with only half a position, a living
+tree without a stand layer — leads to that one tree being excluded or its
+position dropped, while the rest of the plot survives. Whenever this happens,
+the affected trees are named individually in the warnings, by tree number where
+one exists and by DBH otherwise, so that you can look them up in your own
+data. What *FeNEU* never does is guess: the package does not invent a
+plausible value to keep going quietly.
+
+**Encoding robustness.** Field data arrive in whatever encoding the exporting
+program happened to use, and the difference between UTF-8 and ISO-8859-1
+usually shows up in exactly the places that matter — species abbreviations and
+column names carrying umlauts. Every import function takes an `encoding`
+argument that defaults to `"auto"`, and the species and header matching
+additionally recognises the characteristic garbling that results when UTF-8
+text is read as Latin-1, and repairs it.
+
+**Decimal separator robustness.** German-language exports write decimals with
+a comma. Reading such a file with automatic type detection silently turns a
+DBH of `23,4` into `234`, which is a data error no plausibility check further
+downstream can recognise as one. *FeNEU* therefore reads every input file as
+plain text and converts only those columns it actually uses, tolerant of both
+the comma and the point.
+
+### 3.2 From preprocessed data to an fe_inventory object
+
+The second step reads the preprocessed files (tab-delimited text) and assembles 
+the *fe_inventory* object, which includes validating it. Continuing with the 
+files we have just written:
+
+```{r pre_to_fe_standwise}
+inv_ex6 <- import_standwise_relascope_pre_to_fe_inventory(pre_dir)
+
+inv_ex6
+```
+
+For a sample inventory it works exactly the same way. The package ships the
+preprocessed files of example ex3 in BaySF style format:
+
+```{r pre_to_fe_sample}
+pre_path <- system.file("extdata", "data_ex3_sample_pre", package = "FeNEU")
+dir(pre_path)
+
+fe_inv <- import_sample_concentric_pre_to_fe_inventory(pre_path)
+
+fe_inv
+```
+
+The result is the very object that *FeNEU* also ships ready-made as
+`data_ex3_sample_fe_inventory`, and which we reuse in the workflows below:
+
+```{r pre_to_fe_check}
+isTRUE(all.equal(fe_inv, data_ex3_sample_fe_inventory))
+```
+
+Note that we did not have to tell the function anything about the coordinate
+reference system. Preprocessed data in BaySF style format declare their own
+coordinate system, and *FeNEU* uses that declaration. Should your files not
+carry it, the function will ask you for it explicitly through its `coord_sys`
+argument rather than assuming one — an assumption about coordinates is a
+particularly expensive way to be wrong.
+
+### 3.3 A one-step shortcut for experienced users
+
+For those cases in which the inventory type is not known until run time — a
+graphical user interface built on top of *FeNEU* is the typical example — the
+package also offers `read_and_convert_data()`. It covers the *pre to
+fe_inventory* step for all inventory types and dispatches on its
+`inventory_type` argument:
+
+```{r read_and_convert}
+fe_inv_2 <- read_and_convert_data(pre_path, inventory_type = "sample_concentric")
+
+isTRUE(all.equal(fe_inv_2, fe_inv))
+```
+
+This is an expert function, and the two-step route shown above remains the
+recommended one for everyday work: it names the inventory type in the function
+you call, which makes both your script and its error messages easier to read.
+
+
+## 4 Status-quo Evaluation {#status_quo}
+
+A status-quo evaluation describes what an inventory currently holds: stem
+number, basal area and standing volume, broken down by species group and by
+size or age. *FeNEU* offers two such evaluations, *base tables* and *structure
+tables*, and produces each of them in three separate steps:
+
+```
+  aggregation          restructuring             rendering
+  base_table_*()   ->  output_base_table()  ->   output_base_table_pdf()
+  structure_table_*()  output_structure_table()  output_structure_table_pdf()
+
+  the numbers          the table layout          the formatted report
+  (R objects)          (an R data frame)         (a PDF file)
+```
+
+This separation is deliberate, and it matters more than it may look. The
+figures are computed first and handed back as plain R objects, so that you can
+work with them further — check them, combine them, feed them into your own
+graphics or into a report of your own making. Nothing forces you through the
+PDF, and the intermediate table stays language-neutral; only the last step
+commits to a language and a layout. If all you want is a number, you never
+have to render anything.
+
+All evaluation functions work on a flat tree table rather than on the nested
+`fe_inventory` object. Preparing that table is the one step every evaluation
+in the rest of this vignette shares:
+
+```{r statusquo_prep}
+# The h_q fallback warning is expected here: a few species x layer groups in the
+# example data carry no measured height, so their mean height is modelled.
+trees_with_heights <- suppressWarnings(
+  data_ex3_sample_fe_inventory |>
+    pull_trees() |>
+    height_complete_inventory()
+)
+
+trees <- data_ex3_sample_fe_inventory |>
+  fill_heights_back(trees_with_heights) |>
+  pull_trees() |>
+  trees_add_essentials(method = "BaySF")
+
+trees
+```
+
+Three things happen here. `pull_trees()` unnests the inventory into one row
+per tree. `height_complete_inventory()` estimates the heights of all trees
+that were not measured — in a typical inventory that is the large majority —
+and `fill_heights_back()` writes those estimates into the inventory object, so
+that the second `pull_trees()` delivers a tree table whose heights are
+complete. Finally `trees_add_essentials()` derives what the evaluations need:
+basal area, single-tree volume, species groups and size classes.
+
+The detour through `fill_heights_back()` and a second `pull_trees()` is worth
+keeping to. It leaves the heights in the inventory object rather than in a
+loose table, and it is the form the rest of the package expects.
+
+### 4.1 Base tables
+
+A base table breaks the inventory down by **species group** and by **one class
+variable**, for which there is a choice: **age classes** or **mean diameter
+classes**. Which of the two to use is not a matter of taste. Age classes are
+the traditional grouping and work well as long as stands are reasonably even
+aged, so that a single stand age is a meaningful statement. In an enterprise
+that consists largely of structurally rich, uneven-aged stands, it is not:
+there is no age one could sensibly assign to such a stand. Mean diameter
+classes describe those forests better, because a diameter can always be
+measured. This is why *FeNEU* offers both throughout.
+
+The second choice concerns the **tree cohort**: the whole inventory
+collective, or the main stand only. This distinction runs through the entire
+package:
+
+* **All layers** (`base_table_age_class()`, `base_table_d_q_class()`) covers
+  every living tree the inventory recorded, understorey and advance
+  regeneration included. It answers what is standing there.
+* **Main stand** (`base_table_age_class_main_stand()`,
+  `base_table_d_q_class_main_stand()`) restricts the evaluation to the
+  main stand layer. This is typically the most important cohort of trees that
+  carries the stand.
+
+The difference is not merely one of a filter. If per-hectare figures of species,
+age classes and other cohorts are desired, it is necessary to estimate the area
+share covered by the cohort of interest. This is only meaningful for the main 
+stand. The all-layers tables therefore report absolute figures but no
+per-hectare values, while the main stand tables report both. Here is the main
+stand of ex3 by age class:
+
+```{r statusquo_basetable}
+bt <- base_table_age_class_main_stand(trees)
+
+names(bt)
+```
+
+The result is a list of four data frames, and they are the levels of
+aggregation the printed table is later assembled from: `detail` holds each
+species group by class, `total` each species group across all classes,
+`all_species` each class across all species groups, and `all_total` the grand
+total. Confidence intervals and mean diameters cannot be summed, which is why
+these levels are computed rather than added up:
+
+```{r statusquo_basetable_detail}
+bt$detail |>
+  select(species_group, age_class, v_hub_m3, n, d_q_cm, n_plot, conf_95_per)
+```
+
+Two figures in this output deserve a comment, because both say something about
+reading inventory results.
+
+The stem number of the youngest age class looks enormous next to the others.
+Extreme values often come with very small sample sizes as we have
+here (our demo example comprises ten plots only). As we can see in the
+`n_plot` column, the stem number and the other variables in the age class are
+upscaled from one single plot only. However, despite being very high, such a
+number is not impossible on a single plot. The trees are very small on average,
+and per hectare they amount to some 14 000 stems, which is a possible density
+for small trees coming from natural regeneration.
+
+The column `conf_95_per` is the more important one. It gives the width of the
+95 % confidence interval of the volume, as a percentage of the volume itself,
+and in this example it is wide, clearly due to the unrealistically small demo
+sample size of just ten plots. For the inventory as a whole it comes to
+roughly ± 70 %, and for individual cells it is even wider. Clearly, it cannot
+be computed if there is only one plot (therefore the NA values), and for small
+samples its value is itself imprecise. Typical sample
+inventories comprise several hundred to several thousand inventory points.
+The package also ships a hundred-point example, `data_ex4_sample_fe_inventory`,
+and the same figure there is about ± 14 %.
+
+Nothing about the *method* changes between the two — only the sample size. It
+is worth keeping in view whenever an inventory is broken down into ever finer
+classes: every subdivision spends precision, and the confidence interval is
+where you can watch it being spent.
+
+`output_base_table()` turns the four into the one table that gets printed:
+
+```{r statusquo_basetable_out}
+bt |>
+  output_base_table() |>
+  head(12)
+```
+
+For the diameter variant, the class limits are prepared once by
+`back_table_dclass()` and passed in:
+
+```{r statusquo_basetable_dq}
+d_classes <- back_table_dclass(trees)
+
+base_table_d_q_class_main_stand(trees, dclass_back = d_classes) |>
+  output_base_table() |>
+  head(8)
+```
+
+The final step writes the formatted report. It needs the PDF toolchain of
+[section 1.2](#toolchain), and it is the only step that does:
+
+```{r statusquo_pdf, eval = FALSE}
+bt |>
+  output_base_table() |>
+  output_base_table_pdf(
+    tab_title  = "Example forest enterprise",
+    output_dir = tempdir(),
+    inventory  = data_ex3_sample_fe_inventory
+  )
+```
+
+The table describes itself: which cohort and which class variable it holds is
+recorded when the table is built and travels with it, so the renderer names
+the file accordingly and states the cohort on the page. Passing `inventory`
+adds the survey year, the total area and the number of inventory points to the
+header.
+
+### 4.2 Structure tables
+
+A structure table adds one further level to the base table: within each
+species group and class, the trees are additionally broken down by the
+**diameter of the individual tree**. Where the base table states that a
+species group holds so much volume in a given age class, the structure table
+shows how that volume is distributed over the diameter range.
+
+The functions mirror the base tables exactly, in both choices, so everything
+said above applies unchanged:
+
+```{r structuretable}
+st <- structure_table_age_class_main_stand(trees)
+
+st |>
+  output_structure_table() |>
+  head(10)
+```
+
+and, as before, `output_structure_table_pdf()` renders it.
+
+One restriction is worth stating clearly, because it is a matter of meaning
+rather than of technique. Structure tables are built for inventories that carry
+individual tree sizes. Currently, only the sample inventory formats we support
+provide that information. Stand-wise inventories can in principle provide it as
+well, but the formats we support convey mean tree sizes only. Structure tables
+will also run on such data, but the result should not be used. The diameter
+breakdown would then be an artefact of a single mean value, and would suggest a
+structure that was never measured. *FeNEU* warns when it suspects this case.
+
+
+## 5 Increment Estimation {#increment}
+
+Volume increment cannot be read off an inventory the way standing volume can.
+*FeNEU* estimates it in three ways, and which of them is available depends on
+the data at hand:
+
+| | Data required | Reports |
+|---|---|---|
+| **Repeated survey** | two surveys of the same plots | any tree collective, with a confidence interval |
+| **BWI 3 growth functions** | one survey, with tree ages | any tree collective |
+| **Yield tables** | one survey, with tree ages | main stand only |
+
+The repeated survey is the most informative way: it rests on measurements taken
+twice, so the increment is observed rather than modelled, and it is the only
+one of the three that yields a confidence interval. It is currently supported
+for sample inventories only. The other two use models, and both need the age of
+the trees/stands. Where an inventory carries no or incomplete ages — which
+happens, and is legitimate, since age is an optional attribute — these two are
+not available, and entering a pragmatic figure might be a workaround.
+
+The three are treated in detail in the vignette
+[Increment Estimation](increment_estimation.html). This section shows what
+each of them looks like from the outside.
+
+### 5.1 Increment from a repeated survey {#repeated_survey}
+
+The package bundles the two ex3 surveys — the one used above and an earlier
+one — together with their prepared tree tables, so the example starts where
+[section 4](#status_quo) left off:
+
+```{r increment_repsurv}
+inc <- inv_increment_repeated_survey(
+  inv_1st       = data_ex3_previous_sample_fe_inventory,
+  inv_2nd       = data_ex3_sample_fe_inventory,
+  inv_1st_trees = data_ex3_previous_sample_trees_essentials,
+  inv_2nd_trees = data_ex3_sample_trees_essentials,
+  method        = "rep_classic",
+  fill_option   = "standard",
+  progress_bar  = FALSE
+)
+
+inc
+```
+
+One call covers the whole chain: the plots of the two surveys are matched, the
+trees within them are matched, an increment is derived for every tree, and the
+trees that could not be matched are either ingrown or removed/mortal and are
+dealt with accordingly. Each step is also available as a function of its own;
+the increment vignette lists them. For most purposes this single call is
+sufficient.
+
+Two arguments deserve attention. `method` selects how a
+tree's increment is derived from two measurements — there are four
+variants, and they differ in how they treat trees that changed sample circle
+between the surveys. `fill_option` governs what happens to trees that could
+not be matched at all. Both are subjects of the
+[Increment Estimation](increment_estimation.html) vignette.
+
+The result carries everything the later steps need:
+
+```{r increment_repsurv_parts}
+names(inc)
+```
+
+`trees` holds the per-tree increments, `overview` the aggregation by plot and
+enterprise, `summaric` the increment balance of the enterprise, `meta` the
+figures the reports print in their header, and `steps` the intermediate
+results of the chain, for anyone who wants to look inside.
+
+From here there are two directions. Broken down by species group and class, in
+the layout of the status-quo tables:
+
+```{r increment_basetable}
+increment_base_table_main_stand(inc, by_class = "age") |>
+  output_increment_base_table() |>
+  head(10)
+```
+
+Or as the enterprise-level summary, which is the figure to quote when the
+question is what the whole forest grows:
+
+```{r increment_overall}
+ovr <- output_increment_overall(inc)
+
+ovr$table_combined |>
+  select(species_group, is_total_row, iv_m3_ha_yr_st, iv_m3_ha_yr_sum)
+```
+
+The last row is the enterprise as a whole. The two columns are two ways of
+arriving at it, and they differ slightly, here 9.35 against 9.57 m³ per
+hectare and year: `_st` adds up the
+increments of the individual trees, `_sum` is the balance of the two surveys
+over the whole measured population — standing volume of the second survey,
+minus that of the first, plus what was removed in between. For the enterprise
+level, that balance is the reference figure; the per-tree route is what allows
+the increment to be broken down into species and classes at all.
+
+Besides `table_combined`, which covers all inventory points, the result holds
+`table_matched` for the points measured in both surveys and `table_2nd_only`
+for those the later survey added, plus a `meta` element for the report header.
+The confidence interval is reported in `table_matched` — for this example
+9.80 ± 2.29 m³ per hectare and year. It is derived from the scatter between
+the inventory points, which requires an inventory point measured twice; the points
+the later survey added contribute an estimate instead, so the combined table
+carries no confidence interval.
+
+Both have their `*_pdf()` counterpart, `output_increment_base_table_pdf()` and
+`output_increment_overall_pdf()`, and both follow the three-step pattern of
+[section 4](#status_quo).
+
+### 5.2 Increment from a single survey
+
+Where only one survey exists, the increment has to be estimated from the
+current state of the trees. *FeNEU* offers two independent approaches.
+
+The **growth functions of the third German National Forest Inventory** (BWI 3)
+[@bwi3_methods_2017] estimate the increment of each tree from its own
+dimensions and age. They yield the same per-tree quantity the repeated survey
+produces, which is why the same aggregation functions apply from there on.
+`inv_increment_gnfi3()` covers the chain and returns the same kind of object
+as `inv_increment_repeated_survey()`:
+
+```{r increment_gnfi3}
+inc_bwi3 <- inv_increment_gnfi3(
+  inv       = data_ex3_sample_fe_inventory,
+  inv_trees = data_ex3_sample_trees_essentials,
+  dt        = 5
+)
+
+inc_bwi3
+```
+
+`dt` is the span the estimate covers, in years. A positive value looks forward,
+a negative one back; five years is a deliberate default rather than a number
+worth changing lightly, since the further such an estimate reaches, the more it
+is affected by removals, mortality and ingrowth it cannot know about.
+
+From here the routes of [section 5.1](#repeated_survey) apply unchanged — the
+class tables, and the species-group overview:
+
+```{r increment_gnfi3_overview}
+increment_base_table(inc_bwi3, by_class = "age") |>
+  output_increment_overview_gnfi3()
+```
+
+This is an estimate for the forest evaluated with the repeated survey above,
+arrived at independently and from one survey alone: 7.3 against 9.4 m³
+per hectare and year. Holding the two against each other is one of the reasons
+to have both.
+
+Since the estimate ages every tree, it needs the age of every tree. Where a
+stand layer carries no ages — which happens, and is legitimate — the function
+stops rather than evaluating the part of the population that happens to have
+one. If ages exist for the main stand only, restricting the tree list to it
+beforehand (`dplyr::filter(trees, layer_key == 1)`) yields a main-stand
+evaluation of the whole enterprise; the reference area stays the full inventory
+area.
+
+**Yield tables** take the other route. They work at stand level rather than on
+individual trees, which requires the area to be split into the shares of
+virtual monospecific stands. Unlike the other two, this approach therefore
+applies to the main stand only. *FeNEU* uses the yield table system of
+*ForestElementsR*, described in its own vignette
+(`vignette("yield_tables", package = "ForestElementsR")`).
+
+```{r increment_ytables}
+inc_yt <- inv_increment_ytables(
+  inv              = data_ex3_sample_fe_inventory,
+  inv_trees        = data_ex3_sample_trees_essentials,
+  ytable_selection = ytables_bavrn_state_var_1_feneu
+)
+
+inc_yt
+
+inc_yt$overview
+```
+
+The estimate is made for each **cohort**: one species in the main stand of one
+inventory plot, on the virtual area it occupies there. Its age and mean height
+give the site index, age and site index give the increment the yield table
+holds, and that figure is corrected by the stocking level — the cohort's basal
+area over the basal area the table expects. A cohort has one age and one mean
+diameter, so grouping a report by age class or by diameter class labels the
+same estimate rather than changing it.
+
+The overview reads accordingly: `area_ha` is the virtual area of each species
+group, `site_index` its mean site index, and `zv_m3_ha_yr` the increment on
+that virtual area. The total row is not an average of those figures — it relates
+the whole increment to the entire inventory area, which is the larger
+reference. Its `site_index` is empty because the index scales of different
+yield tables cannot be averaged. The row without a species group carries the
+area of inventory points that hold no living main stand, so that the areas add
+up to the inventory total.
+
+`ytables_bavrn_state_var_1_feneu` assigns a yield table to each species code.
+It is the set *FeNEU* ships, not a fixed part of the method — the assignment
+can be replaced by one of your own, built from the yield tables
+*ForestElementsR* provides. The
+[Increment Estimation](increment_estimation.html) vignette shows how, and what
+the choice implies.
+
+## 6 Useful tools {#tools}
+
+Beside the chains of the previous chapters, *FeNEU* holds a few functions that
+are useful in their own right.
+
+### 6.1 Reaching into an inventory
+
+[Section 4](#status_quo) used `pull_trees()` to get at the trees of an
+`fe_inventory`. Three further functions pull the other parts of it into a flat
+table: `pull_centers()` the plot centre coordinates, `pull_circle_definitions()`
+the circle geometry of each plot, and `pull_sums()` the stand sums and mean
+values per plot and layer.
+
+```{r tools_pull}
+pull_centers(data_ex3_sample_fe_inventory)
+```
+
+### 6.2 The figures that describe an inventory
+
+`inventory_meta()` returns the survey year, the inventory area and the number
+of plots. These are the three figures the PDF reports print below their title,
+and they are read off the inventory object itself, so they also cover plots
+that carry no trees:
+
+```{r tools_meta}
+inventory_meta(data_ex3_sample_fe_inventory)
+```
+
+`get_inv_year()` returns the survey year alone. For a pair of surveys,
+`inv_period()` adds the period between them — the reference period of a
+repeated-survey increment:
+
+```{r tools_period}
+inv_period(data_ex3_previous_sample_fe_inventory, data_ex3_sample_fe_inventory)
+```
+
+### 6.3 A sheet for a single inventory plot
+
+`plot_info_sheet_pdf()` renders one inventory plot as a PDF sheet. It takes a
+single plot rather than the whole inventory, so it is applied to an element of
+the `plot` column:
+
+```{r tools_plotsheet, eval = FALSE}
+data_ex3_sample_fe_inventory$plot[[1]] |>
+  plot_info_sheet_pdf(output_dir = tempdir())
+```
+
+Like every `*_pdf()` function it needs the toolchain of
+[section 1.2](#toolchain). `dbh_scale` oversizes the tree symbols, which keeps
+them visible on a plot drawn to scale.
+
+### 6.4 Writing a circle definition
+
+The concentric importers of [section 3](#import) require a circle definition.
+Where none is at hand, `generate_circle_definition()` writes one:
+
+```{r tools_circledef, eval = FALSE}
+generate_circle_definition(
+  output_dir  = tempdir(),
+  dbh_cm_from = c(0, 12, 30),
+  radiuses_m  = c(2.82, 5.64, 12.62)
+)
+```
+
+It produces a *uniform* definition — the same circles for every plot. There is
+deliberately no default geometry: the circle sizes determine the representation
+factors and therefore every per-hectare figure that follows. An inventory whose
+plots fall into several circle classes needs a file written by hand, with one
+`fe_ikl` per class.
+
+### 6.5 Standard errors of your own aggregations
+
+Inventory plots represent different areas, so a mean over them is a ratio
+estimator rather than an arithmetic mean. `se_area_weighted()` computes it
+together with its standard error and confidence interval, from the per-hectare
+values of the plots and the areas they represent. It is what the confidence
+intervals of the increment reports rest on, and it is exported so that the same
+figure can be obtained for an aggregation of your own.
+`se_area_weighted_grouped()` does the same within groups.
+
+### 6.6 A species key for the field
+
+*FeNEU* attaches *ForestElementsR*, so its functions are available directly
+after `library(FeNEU)`. One of them is worth a section of its own here, because
+it answers a question that comes up on every survey: which code stands for
+which species. `fe_species_get_field_table()` returns a coding as a compact
+key, one row per code, with the scientific, English and German name beside it:
+
+```{r tools_fieldtable}
+fe_species_get_field_table("bavrn_state") |> head(10)
+```
+
+This is the view to print for field work, and it is not the same as the full
+coding table: that one carries one row per elementary species, so a group code
+appears once per member species. All three name columns are returned whatever
+`options("fe_spec_lang")` is set to. The rows come in the coding's own order,
+the finest codes first and the group codes after; `level` says which is which
+(0 = finest) and `is_tree` marks the categories that are not trees.
+
+The function works for every coding *ForestElementsR* implements, so the key
+can be produced for whichever coding an inventory is recorded in.
+
+### 6.7 Reference data
+
+The species codings and the yield tables themselves belong to
+*ForestElementsR*; see `vignette("tree_species_codings", package =
+"ForestElementsR")` and `vignette("yield_tables", package = "ForestElementsR")`.
+
+*FeNEU* adds one dataset of its own, `ytables_bavrn_state_var_1_feneu`: the
+yield-table assignment of [section 5.2](#increment), which covers all current
+`bavrn_state` species codes.
+
+`?data_examples_overview` lists the example datasets used throughout this
+vignette, at all three levels of processing.
+
+
+## Acknowledgments
+The authors would like to thank the Bavarian Ministry for Nutrition, Agriculture, 
+Forestry, and Tourism for funding the projects 
+*FeNEU: Ein innovatives Instrument für die forstliche Planung in Bayern (E062)* and 
+*Ertragskundliche Betreuung der langfristigen Versuche (W007)*. We also wish to thank
+our colleagues at the Bayerische Staatsforsten (BaySF) for their friendly
+cooperation. The development of *FeNEU* has benefited especially from
+exchange with experienced practitioners. We sincerely thank Sabine Andersen,
+Stefan Esser, Markus Fritsch, Christian Winter, Hans Stark, and Daniel Kraus,
+representing a much larger group. Among them is Rainer Dürr, author of
+the *Silvarith* software, who sadly died before the release of *FeNEU*.
+
+
+
+## References

@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+
+
+<title>Input Data Formats in FeNEU</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Input Data Formats in FeNEU</h1>
+
+
+<div id="TOC">
+<ul>
+<li><a href="#overview" id="toc-overview">1 Overview</a></li>
+<li><a href="#sample-inventories-format-1-and-format-2" id="toc-sample-inventories-format-1-and-format-2">2 Sample inventories:
+Format 1 and Format 2</a>
+<ul>
+<li><a href="#format-1" id="toc-format-1">2.1 Format 1</a></li>
+<li><a href="#format-2" id="toc-format-2">2.2 Format 2</a></li>
+</ul></li>
+<li><a href="#preprocessed-sample-data-baysf-style" id="toc-preprocessed-sample-data-baysf-style">3 Preprocessed sample
+data: BaySF style</a></li>
+<li><a href="#stand-wise-relascope-inventories" id="toc-stand-wise-relascope-inventories">4 Stand-wise relascope
+inventories</a>
+<ul>
+<li><a href="#raw-silvarith-style" id="toc-raw-silvarith-style">4.1 Raw:
+Silvarith style</a></li>
+<li><a href="#preprocessed-wzp_daten.txt" id="toc-preprocessed-wzp_daten.txt">4.2 Preprocessed:
+WZP_Daten.txt</a></li>
+</ul></li>
+<li><a href="#one-call-for-the-last-step" id="toc-one-call-for-the-last-step">5 One call for the last
+step</a></li>
+</ul>
+</div>
+
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(FeNEU)</span></code></pre></div>
+<div id="overview" class="section level2">
+<h2>1 Overview</h2>
+<p>This vignette is the reference for the data <em>FeNEU</em> reads. The
+<a href="FeNEU.html">main vignette</a> shows how the import chain is
+used and what makes it robust; here we define each format down to its
+columns and units, and import every one of them from the example data
+that come with the package.</p>
+<p><em>FeNEU</em> distinguishes two inventory <strong>types</strong>:
+<em>sample</em> inventories laid out on concentric circles, typically
+arranged in a grid, and <em>stand-wise</em> inventories sampled with
+angle-count (relascope) points. For each type the data pass through up
+to three <strong>stages</strong> – raw field data, a standardised
+<em>preprocessed</em> intermediate, and the finished
+<code>fe_inventory</code> object. The import is split accordingly into a
+<code>*_raw_to_pre()</code> converter and a
+<code>*_pre_to_fe_inventory()</code> reader, and you may enter at either
+level:</p>
+<pre><code>  stage          sample inventory, concentric circles    stand-wise inventory, relascope
+  -------------------------------------------------------------------------------------
+  raw            Format 1            Format 2                 Format 1
+                     |                   |                        |
+                     v                   v                        v
+                    import_sample_concentric_            import_standwise_relascope_
+          format1_raw_to_pre() format2_raw_to_pre()      format1_raw_to_pre()
+                     |                   |                        |
+                     v                   v                        v
+  pre             --- BaySF style format ---             Silvarith style format
+                  (five tab-delimited files)             (one file, WZP_Daten.txt)
+                     |                                            |
+                    import_sample_concentric_            import_standwise_relascope_
+                    pre_to_fe_inventory()                pre_to_fe_inventory()
+                     |                                            |
+                     v                                            v
+  fe_inventory   ------------------  fe_inventory  ---------------------</code></pre>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Raw format</th>
+<th><code>*_raw_to_pre()</code></th>
+<th>Preprocessed form</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>sample, concentric</td>
+<td>Format 1</td>
+<td><code>import_sample_concentric_format1_raw_to_pre()</code></td>
+<td>BaySF style (5 files)</td>
+</tr>
+<tr class="even">
+<td>sample, concentric</td>
+<td>Format 2</td>
+<td><code>import_sample_concentric_format2_raw_to_pre()</code></td>
+<td>BaySF style (5 files)</td>
+</tr>
+<tr class="odd">
+<td>stand-wise, relascope</td>
+<td>Format 1</td>
+<td><code>import_standwise_relascope_format1_raw_to_pre()</code></td>
+<td>Silvarith style (<code>WZP_Daten.txt</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The supported combinations are <em>sample × concentric</em> and
+<em>stand-wise × relascope</em>; the design is open for further methods.
+Every file is tab-delimited plain text (<code>.txt</code>). Decimal
+numbers may use a point or a comma – <em>FeNEU</em> reads each file as
+text and parses only the columns it uses, so a comma decimal is never
+mistaken for a thousands separator (see the main vignette for the
+encoding and plausibility handling this step performs).</p>
+<p>Species are given as integer codes of the <code>bavrn_state</code>
+coding of <em>ForestElementsR</em>
+(<code>vignette(&quot;tree_species_codings&quot;, package = &quot;ForestElementsR&quot;)</code>;
+the main vignette shows <code>fe_species_get_field_table()</code> for a
+printable key). The tables below name the columns each format consumes;
+the function help pages
+(<code>?import_sample_concentric_format1_raw_to_pre</code> and the
+others) carry the fine print – the rules of which columns may be left
+empty and which not, and the default file name each importer expects. A
+missing value is simply an empty field. Any column not listed is
+ignored, so extra columns never disturb an import. All example data are
+described in <code>?data_examples_overview</code>.</p>
+</div>
+<div id="sample-inventories-format-1-and-format-2" class="section level2">
+<h2>2 Sample inventories: Format 1 and Format 2</h2>
+<p><em>FeNEU</em> currently supports two raw data formats for sample
+inventories with concentric circles. The two grew up in parallel with
+<em>FeNEU</em> itself and have no fundamental differences in content –
+they simply reflect different user preferences for how the data are
+exported. We call them <em>Format 1</em> and <em>Format 2</em>. Both
+produce the same BaySF-style preprocessed files (Section 3), so
+everything downstream is identical.</p>
+<div id="format-1" class="section level3">
+<h3>2.1 Format 1</h3>
+<p><em>FeNEU</em>’s own raw format. Column names are in
+<strong>English</strong>, with the German equivalents accepted as
+aliases (renamed silently before validation), and are
+<strong>case-insensitive</strong>. Format 1 reads three files – a tree
+list, an inventory-point file, and an optional small-tree file.</p>
+<p><strong>Tree list.</strong> One row per tree, both living and dead.
+Required:</p>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Alias</th>
+<th>Unit / values</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>plot_id</code></td>
+<td></td>
+<td></td>
+<td>plot identifier; matches the point file</td>
+</tr>
+<tr class="even">
+<td><code>dbh</code></td>
+<td><code>bhd</code></td>
+<td>cm, ≥ 0</td>
+<td>diameter at breast height (0 for tally records)</td>
+</tr>
+<tr class="odd">
+<td><code>height</code></td>
+<td><code>hoehe</code></td>
+<td>m, empty if unmeasured</td>
+<td>total tree height</td>
+</tr>
+<tr class="even">
+<td><code>species</code></td>
+<td><code>baumart</code></td>
+<td>BaySF code</td>
+<td>species (or an abbreviation, see below)</td>
+</tr>
+<tr class="odd">
+<td><code>angle</code></td>
+<td><code>winkel</code></td>
+<td>degrees, 0–360</td>
+<td>azimuth centre → stem (empty on the innermost circle)</td>
+</tr>
+<tr class="even">
+<td><code>distance</code></td>
+<td><code>entfernung</code></td>
+<td>m, &gt; 0</td>
+<td>horizontal distance centre → stem (same rule)</td>
+</tr>
+<tr class="odd">
+<td><code>layer</code></td>
+<td><code>schicht</code></td>
+<td>1–6</td>
+<td>1 main stand, 2 understorey, 3 advance regeneration, 4 residual
+stand, 5 overstorey, 6 veteran</td>
+</tr>
+<tr class="even">
+<td><code>mortality</code></td>
+<td><code>mortal</code></td>
+<td>0/1/2</td>
+<td>0 alive, 1 recently dead, 2 older snag</td>
+</tr>
+<tr class="odd">
+<td><code>count</code></td>
+<td><code>anzahl</code></td>
+<td>integer</td>
+<td>trees represented by the record (&gt; 1 for tallies)</td>
+</tr>
+</tbody>
+</table>
+<p>Optional: <code>age</code> (<code>alter</code>, years – the
+<strong>stand</strong> age, stored redundantly per tree row; missing or
+incomplete age limits which analyses are possible and raises a warning
+on import), and <code>tree_nr</code> (<code>baumnummer</code>), which
+may be supplied but is never consumed – tree identification rests on the
+coordinates alone.</p>
+<p><strong>Inventory points.</strong> One row per plot. Required:</p>
+<table>
+<colgroup>
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Alias</th>
+<th>Unit</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>plot_id</code></td>
+<td></td>
+<td></td>
+<td>plot identifier; matches the tree list</td>
+</tr>
+<tr class="even">
+<td><code>coord_x</code></td>
+<td></td>
+<td>CRS units</td>
+<td>plot-centre easting / longitude</td>
+</tr>
+<tr class="odd">
+<td><code>coord_y</code></td>
+<td></td>
+<td>CRS units</td>
+<td>plot-centre northing / latitude</td>
+</tr>
+<tr class="even">
+<td><code>rep_area</code></td>
+<td><code>repfl</code></td>
+<td>ha, &gt; 0</td>
+<td>area this plot represents</td>
+</tr>
+<tr class="odd">
+<td><code>slope</code></td>
+<td><code>neigung</code></td>
+<td><strong>percent</strong>, ≥ 0</td>
+<td>terrain slope (0 for level ground)</td>
+</tr>
+</tbody>
+</table>
+<p>Optional: <code>coord_sys</code> (the coordinate reference system,
+one value for the whole file – otherwise given by the
+<code>coord_sys</code> argument), and <code>survey_date</code>
+(<code>erfdat</code>, of which only the year is kept – or the year is
+set directly with the <code>inventory_year</code> argument).</p>
+<p><strong>Small trees</strong> (optional file). Small trees are below
+the caliper threshold, often below breast height, and are recorded as
+un-located tally records. Required columns are <code>plot_id</code>,
+<code>dbh</code> (<code>bhd</code>), <code>height</code>
+(<code>hoehe</code>), <code>species</code> (<code>baumart</code>) and
+<code>count</code> (<code>anzahl</code>); <code>layer</code> and
+<code>age</code> are optional. Dedicated regeneration analyses are not
+available yet. Until they are, every small tree with a <strong>DBH
+greater than zero</strong> still enters the ordinary evaluations (it
+joins the regular tree records), while a record with
+<code>dbh = 0</code> is carried in the <code>small_trees</code> slot for
+later.</p>
+<p>The geometry of the concentric circles is not part of the field data
+– it belongs to the inventory design and must be supplied to the
+converter, as a pair of vectors giving the lower DBH threshold (cm) and
+the radius (m) of each circle, or as a circle-definition file (useful
+when the design varies across the inventory; see
+<code>?import_sample_concentric_format1_raw_to_pre</code>). These radii
+determine every representation factor, so a wrong geometry scales every
+per-hectare figure. Example ex1 comes in Format 1; its design is
+<code>dbh_cm_from = c(0, 12, 30, 48)</code> with
+<code>radiuses_m = c(2.82, 5.64, 11.28, 17.84)</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>raw1 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex1_sample_raw&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a><span class="fu">dir</span>(raw1)</span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;Baumschicht.txt&quot; &quot;Inv_punkt.txt&quot;   &quot;Verjuengung.txt&quot;</span></span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a></span>
+<span id="cb3-5"><a href="#cb3-5" tabindex="-1"></a>pre1 <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;ex1_pre&quot;</span>)</span>
+<span id="cb3-6"><a href="#cb3-6" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" tabindex="-1"></a>report1 <span class="ot">&lt;-</span> <span class="fu">import_sample_concentric_format1_raw_to_pre</span>(</span>
+<span id="cb3-8"><a href="#cb3-8" tabindex="-1"></a>  <span class="at">input_path           =</span> raw1,</span>
+<span id="cb3-9"><a href="#cb3-9" tabindex="-1"></a>  <span class="at">output_dir           =</span> pre1,</span>
+<span id="cb3-10"><a href="#cb3-10" tabindex="-1"></a>  <span class="at">small_trees_filename =</span> <span class="st">&quot;Verjuengung&quot;</span>,</span>
+<span id="cb3-11"><a href="#cb3-11" tabindex="-1"></a>  <span class="at">dbh_cm_from          =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">12</span>, <span class="dv">30</span>, <span class="dv">48</span>),</span>
+<span id="cb3-12"><a href="#cb3-12" tabindex="-1"></a>  <span class="at">radiuses_m           =</span> <span class="fu">c</span>(<span class="fl">2.82</span>, <span class="fl">5.64</span>, <span class="fl">11.28</span>, <span class="fl">17.84</span>),</span>
+<span id="cb3-13"><a href="#cb3-13" tabindex="-1"></a>  <span class="at">coord_sys            =</span> <span class="st">&quot;gk4&quot;</span>,</span>
+<span id="cb3-14"><a href="#cb3-14" tabindex="-1"></a>  <span class="at">species_guess        =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-15"><a href="#cb3-15" tabindex="-1"></a>)</span>
+<span id="cb3-16"><a href="#cb3-16" tabindex="-1"></a></span>
+<span id="cb3-17"><a href="#cb3-17" tabindex="-1"></a>report1<span class="sc">$</span>ok</span>
+<span id="cb3-18"><a href="#cb3-18" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb3-19"><a href="#cb3-19" tabindex="-1"></a><span class="fu">dir</span>(pre1)</span>
+<span id="cb3-20"><a href="#cb3-20" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fcbestku.txt&quot; &quot;fdinvba.txt&quot;  &quot;fdinvbhd.txt&quot; &quot;fdinvkrs.txt&quot; &quot;fdvikrs.txt&quot;</span></span></code></pre></div>
+<p><code>species_guess = TRUE</code> was used here because ex1 records
+species as text abbreviations rather than codes. It is a stopgap for
+real-world data: it resolves abbreviations against a reference list, and
+<code>report1$species_mapping</code> shows every resolution so it can be
+checked rather than trusted. Supplying the proper numeric codes is the
+recommended path.</p>
+</div>
+<div id="format-2" class="section level3">
+<h3>2.2 Format 2</h3>
+<p>A multi-table export that defines nine source tables. This converter
+reads the two that carry the core inventory – the tree list
+(<code>02_probekreis.txt</code>) and the inventory-point / coordinate
+table (<code>01_root_entity.txt</code>), which are also the default file
+names. The remaining tables (tree properties, regeneration, dead wood)
+are not read yet.</p>
+<p>Format 2 keeps its own native column names and encodes the same
+information as Format 1 in <strong>different units</strong>: DBH in
+millimetres, height in decimetres, distance in centimetres, and the tree
+position as a <strong>back azimuth</strong> whose unit is chosen per
+record.</p>
+<p><strong>Tree list</strong> (<code>02_probekreis.txt</code>).
+Required:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Unit / values</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>koord</code></td>
+<td></td>
+<td>plot identifier; matches the point file</td>
+</tr>
+<tr class="even">
+<td><code>ba_fe</code></td>
+<td>BaySF code</td>
+<td>species</td>
+</tr>
+<tr class="odd">
+<td><code>bhd</code></td>
+<td><strong>mm</strong> → cm</td>
+<td>diameter at breast height</td>
+</tr>
+<tr class="even">
+<td><code>hoehe_1</code></td>
+<td><strong>dm</strong> → m</td>
+<td>total tree height (empty if unmeasured)</td>
+</tr>
+<tr class="odd">
+<td><code>pol_entf</code></td>
+<td><strong>cm</strong></td>
+<td>horizontal distance from plot centre</td>
+</tr>
+<tr class="even">
+<td><code>pol_wink</code>, <code>rueckazimut_gon</code>,
+<code>rueckazimut_grad</code>, <code>einheit_azimut</code></td>
+<td></td>
+<td>tree azimuth (see below)</td>
+</tr>
+<tr class="odd">
+<td><code>bestku</code></td>
+<td>Format-2 layer code</td>
+<td>stand layer, remapped to BaySF (see below)</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>azimuth unit is not fixed</strong>. <code>pol_wink</code>
+(degrees) is used when present; otherwise the back azimuth is read from
+the column that <code>einheit_azimut</code> declares – <code>1</code>
+means <code>rueckazimut_gon</code> (gon, converted to degrees),
+<code>2</code> means <code>rueckazimut_grad</code> (degrees).
+<code>einheit_azimut</code> is authoritative: if it does not match the
+populated column, the tree is treated as having no usable position
+rather than reading a value in the wrong unit.</p>
+<p>The <strong>stand-layer code <code>bestku</code> differs from the
+BaySF coding</strong> and is remapped on import. The same number means
+different things in the two codings, so this matters:</p>
+<table>
+<thead>
+<tr class="header">
+<th>Format 2 (<code>bestku</code>)</th>
+<th>→</th>
+<th>BaySF</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1 Hauptschicht</td>
+<td>→</td>
+<td>1 main stand</td>
+</tr>
+<tr class="even">
+<td>2 Zwischenschicht</td>
+<td>→</td>
+<td>2 understorey</td>
+</tr>
+<tr class="odd">
+<td>3 Unterschicht</td>
+<td>→</td>
+<td>2 understorey</td>
+</tr>
+<tr class="even">
+<td>4 Vorausverjüngung</td>
+<td>→</td>
+<td>3 advance regeneration</td>
+</tr>
+<tr class="odd">
+<td>5 Überhälter/Nachhiebsrest</td>
+<td>→</td>
+<td>5 overstorey</td>
+</tr>
+</tbody>
+</table>
+<p>Optional tree columns are <code>alter_ba</code> (stand age) and
+<code>baumnummer</code> (not consumed). Format 2 records <strong>living
+trees only</strong>; mortality is set to 0 for every record.</p>
+<p><strong>Inventory points</strong> (<code>01_root_entity.txt</code>).
+Required: <code>koord</code>, <code>lage_probekreismittelpunkt_x</code>
+/ <code>_y</code> (plot-centre coordinates), and <code>repfl</code>
+(represented area, ha). Optional: <code>date_created</code> (survey
+date, year kept), <code>lage_probekreismittelpunkt_srs</code> (an EPSG
+declaration of the coordinate system, as the native export writes it),
+and <code>neigung</code> (slope, percent – absent in most Format-2
+exports, in which case the slope defaults to 0 with a warning).</p>
+<p>Example ex2 comes in Format 2; its points carry their own
+<code>srs</code>, so no <code>coord_sys</code> argument is needed. Its
+<code>date_created</code> uses a day-month-year format that cannot be
+read unambiguously, so we set the year directly with
+<code>inventory_year</code> – the argument that overrides the date
+column for exactly this case:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>raw2 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex2_sample_raw&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a><span class="fu">dir</span>(raw2)</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;01_root_entity.txt&quot; &quot;02_probekreis.txt&quot;</span></span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>pre2 <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;ex2_pre&quot;</span>)</span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a></span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>report2 <span class="ot">&lt;-</span> <span class="fu">import_sample_concentric_format2_raw_to_pre</span>(</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">input_path     =</span> raw2,</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">output_dir     =</span> pre2,</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>  <span class="at">dbh_cm_from    =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">12</span>, <span class="dv">30</span>),</span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>  <span class="at">radiuses_m     =</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="fl">6.31</span>, <span class="fl">12.62</span>),</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a>  <span class="at">inventory_year =</span> <span class="dv">2025</span></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>)</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>report2<span class="sc">$</span>ok</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a><span class="fu">dir</span>(pre2)</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fcbestku.txt&quot; &quot;fdinvba.txt&quot;  &quot;fdinvbhd.txt&quot; &quot;fdinvkrs.txt&quot; &quot;fdvikrs.txt&quot;</span></span></code></pre></div>
+</div>
+</div>
+<div id="preprocessed-sample-data-baysf-style" class="section level2">
+<h2>3 Preprocessed sample data: BaySF style</h2>
+<p>Both concentric converters write the same preprocessed form: five
+tab-delimited files in the Bavarian State Forest (BaySF) style. A user
+who already holds data in this shape – from the raw import, from another
+program, or from an inventory service provider – starts here.</p>
+<table>
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>File</th>
+<th>Holds</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>fdinvbhd.txt</code></td>
+<td>one row per tree: DBH, height, position, mortality</td>
+</tr>
+<tr class="even">
+<td><code>fdinvba.txt</code></td>
+<td>per tree: species, stand age, stand layer</td>
+</tr>
+<tr class="odd">
+<td><code>fdinvkrs.txt</code></td>
+<td>per plot: coordinates, slope, represented area, circle class</td>
+</tr>
+<tr class="even">
+<td><code>fcbestku.txt</code></td>
+<td>the stand-layer definition</td>
+</tr>
+<tr class="odd">
+<td><code>fdvikrs.txt</code></td>
+<td>the circle definition (DBH threshold and area per circle)</td>
+</tr>
+</tbody>
+</table>
+<p><code>import_sample_concentric_pre_to_fe_inventory()</code> reads
+them and builds the <code>fe_inventory</code> of
+<code>fe_ccircle_spatial</code> plots. The package ships the
+preprocessed files of ex3:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>pre3 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex3_sample_pre&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">dir</span>(pre3)</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;fcbestku.txt&quot; &quot;fdinvba.txt&quot;  &quot;fdinvbhd.txt&quot; &quot;fdinvkrs.txt&quot; &quot;fdvikrs.txt&quot;</span></span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>inv3 <span class="ot">&lt;-</span> <span class="fu">import_sample_concentric_pre_to_fe_inventory</span>(pre3)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>inv3</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; # A tibble: 10 × 3</span></span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a><span class="co">#&gt;    plot_id              plot       area_rep_ha</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co">#&gt;  * &lt;chr&gt;                &lt;list&gt;           &lt;dbl&gt;</span></span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a><span class="co">#&gt;  1 900000002_1_99900002 &lt;f_ccrcl_&gt;        2.97</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="co">#&gt;  2 900000015_1_99900015 &lt;f_ccrcl_&gt;        5.14</span></span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a><span class="co">#&gt;  3 900000020_1_99900020 &lt;f_ccrcl_&gt;        4.43</span></span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="co">#&gt;  4 900000029_1_99900029 &lt;f_ccrcl_&gt;        4.69</span></span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt;  5 900000043_1_99900043 &lt;f_ccrcl_&gt;        3.97</span></span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="co">#&gt;  6 900000046_1_99900046 &lt;f_ccrcl_&gt;        7.05</span></span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt;  7 900000061_1_99900061 &lt;f_ccrcl_&gt;        6.98</span></span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a><span class="co">#&gt;  8 900000075_1_99900075 &lt;f_ccrcl_&gt;        3.08</span></span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co">#&gt;  9 900000086_1_99900086 &lt;f_ccrcl_&gt;        3.80</span></span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="co">#&gt; 10 900000100_1_99900100 &lt;f_ccrcl_&gt;        4.63</span></span></code></pre></div>
+<p>The plot centres are stored in the <code>gauss_rw</code> /
+<code>gauss_hw</code> columns of <code>fdinvkrs.txt</code>. That name is
+historical: modern BaySF exports store <strong>UTM32</strong> (ETRS89 /
+UTM zone 32N) values in them, so <em>FeNEU</em> never infers the
+coordinate system from the column name. Files it writes itself record
+the real system in a <code>coord_sys</code> column and are
+self-describing (ex3 above needed no argument); a genuine BaySF export
+has no such column, and you pass <code>coord_sys</code> explicitly – for
+current data almost always <code>&quot;utm32&quot;</code>. An assumption about
+coordinates is a particularly expensive way to be wrong, so the reader
+asks rather than guesses.</p>
+</div>
+<div id="stand-wise-relascope-inventories" class="section level2">
+<h2>4 Stand-wise relascope inventories</h2>
+<p>A stand-wise inventory samples several relascope points within each
+pre-defined stand – enough to represent the stand adequately. Its import
+chain has the same two stages as the sample chain. The preprocessed form
+is a single file, <code>WZP_Daten.txt</code>, in the Silvarith style;
+the raw converter produces it from a Silvarith-style export, and a user
+who already holds a <code>WZP_Daten.txt</code> starts at Section
+4.2.</p>
+<div id="raw-silvarith-style" class="section level3">
+<h3>4.1 Raw: Silvarith style</h3>
+<p><code>import_standwise_relascope_format1_raw_to_pre()</code> reads a
+Silvarith-style raw file – by default
+<code>EingabedatenGesamt.txt</code> – validates it, collecting every
+problem rather than stopping at the first, and writes the preprocessed
+<code>WZP_Daten.txt</code>. The Silvarith export is a German-locale
+file, with umlaut headers and <code>DD.MM.YYYY</code> dates; its
+decimals are written with a comma, though a point is read just as well.
+Each row represents a cohort of trees at one sample point in one stand,
+defined by species and stand layer. Required columns (after lower-casing
+the header):</p>
+<table>
+<thead>
+<tr class="header">
+<th>Column</th>
+<th>Renamed to</th>
+<th>Unit / values</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>STPNr</code></td>
+<td><code>stpnr</code></td>
+<td></td>
+<td>angle-count point number within the stand</td>
+</tr>
+<tr class="even">
+<td><code>lfdNrSTP</code></td>
+<td><code>lfd_nr</code></td>
+<td></td>
+<td>record number within the point</td>
+</tr>
+<tr class="odd">
+<td><code>Bestand</code></td>
+<td><code>bestand</code></td>
+<td></td>
+<td>stand identifier</td>
+</tr>
+<tr class="even">
+<td><code>Best.-Fläche</code></td>
+<td><code>bestflaeche</code></td>
+<td>ha</td>
+<td>stand area</td>
+</tr>
+<tr class="odd">
+<td><code>ZF</code></td>
+<td><code>zaehlfaktor</code></td>
+<td></td>
+<td>angle-count factor</td>
+</tr>
+<tr class="even">
+<td><code>BA</code></td>
+<td><code>baumart</code></td>
+<td>BaySF code</td>
+<td>species</td>
+</tr>
+<tr class="odd">
+<td><code>Alter</code></td>
+<td></td>
+<td>years</td>
+<td>stand age</td>
+</tr>
+<tr class="even">
+<td><code>Schicht</code></td>
+<td></td>
+<td>0–3</td>
+<td>stand layer (see below)</td>
+</tr>
+<tr class="odd">
+<td><code>ANZ.</code></td>
+<td><code>anzahl</code></td>
+<td>integer</td>
+<td>tree count of the record</td>
+</tr>
+<tr class="even">
+<td><code>BHD</code></td>
+<td></td>
+<td>cm</td>
+<td>mean diameter</td>
+</tr>
+<tr class="odd">
+<td><code>Höhe</code></td>
+<td><code>hoehe</code></td>
+<td>m</td>
+<td>mean height</td>
+</tr>
+<tr class="even">
+<td><code>Stichtag</code></td>
+<td></td>
+<td><code>DD.MM.YYYY</code></td>
+<td>survey date</td>
+</tr>
+</tbody>
+</table>
+<p><code>Schicht</code> codes the stand layer: <code>0</code> = main
+stand (Hauptschicht), <code>1</code> = harvest remnants
+(Nachhiebsreste), <code>2</code> = veterans (Überhälter) –
+<code>1</code> and <code>2</code> both fall into the remnant/veteran
+layer – and <code>3</code> = understorey (Unter-/Zwischenschicht).</p>
+<p>The validation checks that <code>BHD</code> is non-negative,
+<code>Schicht</code> is in <code>{0, 1, 2, 3}</code>, and
+<code>Stichtag</code> parses; a height above 50 m raises a non-blocking
+warning. Example ex6 comes in this form:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>raw6 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex6_standwise_raw&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">dir</span>(raw6)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;EingabedatenGesamt.txt&quot; &quot;Inventuraufnahmen.txt&quot;</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>pre6 <span class="ot">&lt;-</span> <span class="fu">file.path</span>(<span class="fu">tempdir</span>(), <span class="st">&quot;ex6_pre&quot;</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>report6 <span class="ot">&lt;-</span> <span class="fu">import_standwise_relascope_format1_raw_to_pre</span>(</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">input_path =</span> raw6,</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">output_dir =</span> pre6</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>report6<span class="sc">$</span>ok</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a><span class="fu">dir</span>(pre6)</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a><span class="co">#&gt; [1] &quot;WZP_Daten.txt&quot;</span></span></code></pre></div>
+<p>The example folder also holds <code>Inventuraufnahmen.txt</code>; it
+is not needed yet and is reserved for future features.</p>
+</div>
+<div id="preprocessed-wzp_daten.txt" class="section level3">
+<h3>4.2 Preprocessed: WZP_Daten.txt</h3>
+<p><code>WZP_Daten.txt</code> is the canonical, ASCII / decimal-point
+form of the same columns.
+<code>import_standwise_relascope_pre_to_fe_inventory()</code> reads it
+and builds the <code>fe_inventory</code> of <code>fe_stand</code> plots.
+The package ships ex7 at this stage:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>pre7 <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">&quot;extdata&quot;</span>, <span class="st">&quot;data_ex7_standwise_pre&quot;</span>, <span class="at">package =</span> <span class="st">&quot;FeNEU&quot;</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a><span class="fu">dir</span>(pre7)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co">#&gt; [1] &quot;WZP_Daten.txt&quot;</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>inv7 <span class="ot">&lt;-</span> <span class="fu">import_standwise_relascope_pre_to_fe_inventory</span>(pre7)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>inv7</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a><span class="co">#&gt; # A tibble: 15 × 3</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="co">#&gt;    plot_id        plot       area_rep_ha</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a><span class="co">#&gt;  * &lt;chr&gt;          &lt;list&gt;           &lt;dbl&gt;</span></span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a><span class="co">#&gt;  1 1_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a><span class="co">#&gt;  2 1_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a><span class="co">#&gt;  3 2_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a><span class="co">#&gt;  4 2_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a><span class="co">#&gt;  5 3_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a><span class="co">#&gt;  6 3_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a><span class="co">#&gt;  7 4_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a><span class="co">#&gt;  8 4_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a><span class="co">#&gt;  9 5_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a><span class="co">#&gt; 10 5_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a><span class="co">#&gt; 11 6_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a><span class="co">#&gt; 12 6_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a><span class="co">#&gt; 13 7_9- 1- 0- - 1 &lt;fe_stand&gt;       0.887</span></span>
+<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a><span class="co">#&gt; 14 7_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span>
+<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#&gt; 15 8_9- 3- 1- - 0 &lt;fe_stand&gt;       0.654</span></span></code></pre></div>
+</div>
+</div>
+<div id="one-call-for-the-last-step" class="section level2">
+<h2>5 One call for the last step</h2>
+<p>For code that does not know the inventory type until run time – a
+graphical user interface on top of <em>FeNEU</em> is the typical case –
+<code>read_and_convert_data()</code> covers the <em>pre →
+fe_inventory</em> step for every type and dispatches on its
+<code>inventory_type</code> argument:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>inv3b <span class="ot">&lt;-</span> <span class="fu">read_and_convert_data</span>(pre3, <span class="at">inventory_type =</span> <span class="st">&quot;sample_concentric&quot;</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="fu">isTRUE</span>(<span class="fu">all.equal</span>(inv3b, inv3))</span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a><span class="co">#&gt; [1] TRUE</span></span></code></pre></div>
+<p>It is an expert entry point. For everyday work the two-step route
+shown above is the recommended one: naming the inventory type in the
+function you call keeps both the script and its error messages easy to
+read.</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
