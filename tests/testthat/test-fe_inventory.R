@@ -8,11 +8,18 @@ test_that("fe_inventory behaves predictably", {
 
   # The ex3 pre is self-describing (coord_sys = utm32), so no argument is
   # needed; the rebuilt object matches the packaged one.
+  rebuilt <- read_and_convert_data(inv_path,
+                                   inventory_type = "sample_concentric") |>
+    suppressWarnings() |>
+    suppressMessages()
+
+  # The WKT text of a CRS depends on the PROJ installed (see helper-crs.R), so
+  # both sides are compared with their CRSs re-derived in this session. The
+  # comparison still requires both to name the same system: a different EPSG
+  # code would yield a different CRS here.
   expect_equal(
-        read_and_convert_data(inv_path, inventory_type = "sample_concentric") |>
-        suppressWarnings() |>
-        suppressMessages(),
-      data_ex3_sample_fe_inventory
+    restamp_crs(rebuilt),
+    restamp_crs(data_ex3_sample_fe_inventory)
   )
 
 })

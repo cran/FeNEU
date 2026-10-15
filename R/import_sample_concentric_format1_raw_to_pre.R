@@ -666,6 +666,15 @@ import_sample_concentric_format1_raw_to_pre <- function(input_path,
       mortal   = "mortality"
     ) |>
     dplyr::mutate(
+      # Format 1 records the distance from the plot centre in METRES (see the
+      # column documentation of `distance` above); the BaySF pre format stores
+      # it in CENTIMETRES, and make_object_lists() divides by 100 again when it
+      # builds the tree positions. Without this conversion every position comes
+      # out at a hundredth of its true distance -- which is what happened up to
+      # and including 3.0.2. The BW converter does the same thing for the same
+      # reason (import_functions_BW.R), and Format 2's raw source is already in
+      # cm, so it passes the column through untouched.
+      pol_entf  = .data$pol_entf * 100,
       hmb       = ifelse(!is.na(.data$bhd_h), "J", NA_character_),
       bestkey   = 1L,
       bestlfd   = 1L,

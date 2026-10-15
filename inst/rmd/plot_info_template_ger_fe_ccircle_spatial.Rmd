@@ -1,9 +1,16 @@
 ---
 params:
-  x:
-  title:
+  sheet:
+  heading:
+  subtitle:
   dbh_scale:
-title: "\\fontsize{12}{14}\\selectfont Stichprobenpunkt `r params$title`"
+  filter_text:
+# Single-quoted, so that backslashes stay literal and the text from R can hold
+# double quotes; single quotes in it are doubled (\x27, because a literal one
+# would end the string before knitr has replaced the code). An empty subtitle
+# prints nothing.
+title: '\fontsize{12}{14}\selectfont `r gsub("\x27", "\x27\x27", params$heading, fixed = TRUE)`'
+subtitle: '`r if (nzchar(params$subtitle)) paste0("\\fontsize{10}{12}\\selectfont ", gsub("\x27", "\x27\x27", params$subtitle, fixed = TRUE)) else ""`'
 classoption:
   - twocolumn
   - a4paper
@@ -11,61 +18,139 @@ geometry:
   - landscape
   - margin=1in
 fontsize: 11pt
+header-includes:
+  - \usepackage{supertabular}
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
-x <- params$x
+# All content is prepared by FeNEU:::.plot_info_sheet_data(); this template
+# only lays it out. Table and map come from the same selection of trees.
+sheet <- params$sheet
+x     <- sheet$x
+```
 
-# Filter dead/removal trees
-if ("removal" %in% names(x$trees)) {
-  live_ids <- x$trees$tree_id[!x$trees$removal]
-  x$trees         <- x$trees[!x$trees$removal, , drop = FALSE]
-  x$tree_positions <- x$tree_positions[
-    x$tree_positions$tree_id %in% live_ids, , drop = FALSE]
+```{r table, results = "asis"}
+tp <- sheet$table |>
+  dplyr::mutate(
+    species_id = stringr::word(format(.data$species_id, spec_lang = "ger"), 1),
+    removal    = ifelse(.data$removal, "ja", "")
+  )
+
+# Two columns are only shown when they carry information: the count when a
+# record stands for more than one tree (possible for trees without position),
+# the removal mark when removed trees are part of the selection.
+show_count   <- any(tp$tree_count != 1, na.rm = TRUE)
+show_removal <- length(sheet$removed_ids) > 0
+
+tp <- tp |>
+  dplyr::select(
+    "Nr." = "tree_id", "Entf." = "R", "Winkel" = "angle",
+    "Baumart" = "species_id", "BHD" = "dbh_cm", "Alter" = "age_yr",
+    "Höhe" = "height_m",
+    dplyr::any_of(c(
+      if (show_count)   c("Anz."  = "tree_count"),
+      if (show_removal) c("Ausg." = "removal")
+    ))
+  )
+
+# Written as a supertabular rather than through kable: a plot can carry 60
+# trees and more (Sailershausen 2025: up to 60, median 22), which no column
+# holds. A float that does not fit runs off the page and loses rows;
+# supertabular breaks into the next column or page and repeats the header,
+# also in two-column mode, where longtable does not work.
+tex_escape <- function(s) {
+  # The backslash is parked first, so the braces of its replacement are not
+  # escaped in turn
+  s <- gsub("\\", "\001", s, fixed = TRUE)
+  s <- gsub("([&%$#_{}])", "\\\\\\1", s)
+  s <- gsub("~", "\\textasciitilde{}", s, fixed = TRUE)
+  s <- gsub("^", "\\textasciicircum{}", s, fixed = TRUE)
+  gsub("\001", "\\textbackslash{}", s, fixed = TRUE)
 }
+# Numbers are formatted per column, so that a column shares its decimals;
+# missing values stay empty
+cells <- lapply(tp, function(v) {
+  out <- if (is.numeric(v)) format(v, trim = TRUE) else as.character(v)
+  out[is.na(v)] <- ""
+  tex_escape(out)
+})
+align <- vapply(tp, function(v) if (is.numeric(v)) "r" else "l", character(1))
+rows  <- do.call(paste, c(cells, sep = " & "))
+
+# Units go into a second header line, so the columns get no wider than their
+# names. Raw LaTeX, written here and not taken from the data: the distance is
+# R of the tree positions (pol_entf / 100), the azimuth is in degrees, as
+# ForestElementsR expects it.
+units <- c("Entf." = "(m)", "Winkel" = "($^\\circ$)", "BHD" = "(cm)",
+           "Alter" = "(Jahre)", "H\u00f6he" = "(m)")
+unit_row <- ifelse(names(tp) %in% names(units), units[names(tp)], "")
+
+cat(
+  "\\small\n",
+  "\\tablehead{\\hline ", paste(tex_escape(names(tp)), collapse = " & "),
+  " \\\\ ", paste(unit_row, collapse = " & "), " \\\\ \\hline}\n",
+  # every row closes with its own rule, so the tail adds none
+  "\\tabletail{}\n",
+  "\\begin{supertabular}{", paste(align, collapse = ""), "}\n",
+  paste0(rows, " \\\\ \\hline\n", collapse = ""),
+  "\\end{supertabular}\n",
+  "\\normalsize\n",
+  sep = ""
+)
 ```
 
-\vspace*{\fill}
+```{r notes, results = "asis"}
+notes <- character()
 
-```{r table}
-oo <- options(knitr.kable.NA = "")
+if (!is.na(params$filter_text)) {
+  notes <- c(notes, paste0("Auswahl: `", params$filter_text, "`"))
+}
 
-tp <- x$tree_positions |>
-  sf::st_drop_geometry() |>
-  dplyr::select(tree_id, R, angle) |>
-  dplyr::left_join(
-    x$trees |>
-      dplyr::select(tree_id, species_id, dbh_cm, age_yr, height_m)
-  ) |>
-  dplyr::rename(
-    Nr. = tree_id, Baumart = species_id, BHD = dbh_cm, Winkel = angle,
-    Entfernung = R, Alter = age_yr, Höhe = height_m
-  ) |>
-  dplyr::mutate(Baumart = stringr::word(format(Baumart, spec_lang = "ger"), 1))
+n_removed <- length(sheet$removed_ids)
+if (n_removed > 0) {
+  notes <- c(notes, paste0(
+    "Ausgeschiedene Bäume: ", n_removed,
+    " (Spalte *Ausg.*, in der Karte mit $\\times$ markiert)"
+  ))
+}
 
-knitr::kable(tp, "latex")
+if (sheet$n_unpositioned_records > 0) {
+  n_rec <- sheet$n_unpositioned_records
+  n_tr  <- sheet$n_unpositioned_trees
+  notes <- c(notes, paste0(
+    "Bäume ohne Position: ", n_tr,
+    if (n_tr != n_rec) paste0(" (in ", n_rec, " Datensätzen)"),
+    "; ohne Entfernung und Winkel, in der Karte nicht dargestellt"
+  ))
+}
 
-options(oo)
+notes <- c(notes, paste0(
+  "Kleinbäume (BHD 0): ",
+  if (sheet$n_small_trees > 0) sheet$n_small_trees else "keine",
+  "; nicht einzeln aufgeführt"
+))
+
+cat("\\small\n\n", paste0(notes, collapse = "\\newline\n"), "\n\n\\normalsize\n")
 ```
-
-\vspace*{\fill}
 
 \newpage
-
-\vspace*{\fill}
 
 ```{r plot, results = "asis"}
 oo <- options(fe_spec_lang = "ger")
 plotting_set <- merge(x$tree_positions, x$trees)
 x_plot <- plot(x, dbh_scale = params$dbh_scale, show_labels = FALSE)
+# The map starts at the top of its column, level with the table. Neither an
+# empty title (ggtitle("") still reserves a line) nor a top margin may push
+# it down.
 final_plot <- x_plot +
-  ggplot2::ggtitle("") +
+  ggplot2::labs(title = NULL) +
   ggplot2::theme(
     axis.title.x    = ggplot2::element_blank(),
     axis.title.y    = ggplot2::element_blank(),
     axis.text.x     = ggplot2::element_text(angle = 315),
-    legend.position = "none"
+    legend.position = "none",
+    plot.margin     = ggplot2::margin(0, 5.5, 5.5, 5.5)
   ) +
   ggrepel::geom_text_repel(data = plotting_set,
     ggplot2::aes(
@@ -106,8 +191,41 @@ final_plot <- x_plot +
     segment.size = 0, arrow = NULL
   )
 
+# Removed trees get a cross over their position, so they stand out from the
+# remaining stand also in a black-and-white print
+removed_positions <- x$tree_positions[
+  x$tree_positions$tree_id %in% sheet$removed_ids, , drop = FALSE
+]
+if (nrow(removed_positions) > 0) {
+  final_plot <- final_plot +
+    ggplot2::geom_sf(data = removed_positions, shape = 4, size = 4,
+                     stroke = 1.2, colour = "black")
+}
+
+# Size the canvas to the plot itself. A map has a fixed aspect ratio, and on a
+# square canvas ggplot centres it, leaving a gap above it that varies with the
+# width of the axis labels -- the map then no longer starts level with the
+# table. So the height is derived from the width: the fixed parts (labels,
+# margins) as they are, the panel by its aspect ratio.
+fig_w <- 4.5
+grDevices::pdf(NULL)
+g <- ggplot2::ggplotGrob(final_plot)
+w_null <- grid::unitType(g$widths)  == "null"
+h_null <- grid::unitType(g$heights) == "null"
+fixed_w <- grid::convertWidth(sum(g$widths[!w_null]), "in", valueOnly = TRUE)
+fixed_h <- grid::convertHeight(sum(g$heights[!h_null]), "in", valueOnly = TRUE)
+aspect  <- sum(as.numeric(g$heights[h_null])) / sum(as.numeric(g$widths[w_null]))
+# invisible(): this chunk is "asis", so a visible value lands on the sheet
+invisible(grDevices::dev.off())
+fig_h <- fixed_h + (fig_w - fixed_w) * aspect
+
 fig_file <- normalizePath(tempfile(fileext = ".pdf"), winslash = "/", mustWork = FALSE)
-ggplot2::ggsave(fig_file, plot = final_plot, width = 4.5, height = 4.5, device = "pdf")
-cat(sprintf("\\includegraphics[width=\\linewidth]{%s}\n\\vspace*{\\fill}\n", fig_file))
+ggplot2::ggsave(fig_file, plot = final_plot, width = fig_w, height = fig_h,
+                device = "pdf")
+# The map is square, so at full column width it is about as tall as the
+# column; with a two-line heading it would no longer fit and push an empty
+# page behind it. Its height is therefore capped as well.
+cat(sprintf(paste0("\\noindent\\includegraphics[width=\\linewidth,",
+                   "height=0.68\\textheight,keepaspectratio]{%s}\n"), fig_file))
 options(oo)
 ```

@@ -7,8 +7,10 @@
 plot_info_sheet_pdf(
   x,
   title = NA,
+  subtitle = NA,
   output_dir = NA,
   dbh_scale = 4,
+  tree_filter = TRUE,
   language = c("ger")
 )
 }
@@ -16,10 +18,17 @@ plot_info_sheet_pdf(
 \item{x}{An object of class
 \code{\link[ForestElementsR]{fe_ccircle_spatial}}}
 
-\item{title}{id or name for the title of the plot and file. Default is NA,
-which means that the entry \code{stand_id} of the input object \code{x}
-will be used. The actual file name will be "plot_info_ger_" followed by
-\code{title} and the appendix ".pdf".}
+\item{title}{Heading of the sheet, printed as given. Default is NA, which
+gives "Stichprobenpunkt" followed by the entry \code{stand_id} of the
+input object \code{x}. The file name is "plot_info_ger_" followed by
+\code{title} and \code{stand_id} (or \code{stand_id} alone, by default),
+both made file-name safe, and the appendix ".pdf". It always carries the
+\code{stand_id}, so a title shared by all plots of an enterprise does not
+make the sheets overwrite each other.}
+
+\item{subtitle}{Line printed below the heading, as given. Default is NA,
+which prints none. Meant for whatever the heading leaves out, e.g. the
+plot number when the heading names the enterprise and the year.}
 
 \item{output_dir}{Path to the directory where the information sheet will
 be stored in. Default is NA; in this case, the file will be written into
@@ -27,6 +36,13 @@ the temporary directory of the current R session. This directory will,
 however, only available as long as the session is going on.}
 
 \item{dbh_scale}{Factor for oversizing the trees' dbh in the plot}
+
+\item{tree_filter}{A \code{data-masking} expression that applies to the
+trees of the plot (\code{x$trees}) and selects the ones shown on the
+sheet, in the table and on the map alike. The default \code{TRUE} shows
+all trees, removed ones included (and marked); \code{!removal} shows the
+remaining stand only. Works like the argument of the same name of
+\code{plot()} on the plot object.}
 
 \item{language}{Language of the rendered output. Currently only
 \code{"ger"} (German) is implemented and accepted; passing any
@@ -38,7 +54,32 @@ template linguistically consistent).}
 The path to the rendered output file
 }
 \description{
-Render an Information Sheet for an Inventory Plot as a PDF File
+The sheet serves two purposes: finding the trees again in the field, and
+checking a survey. It shows a table of the plot's trees and a map of their
+positions, both built from the same selection of trees.
+}
+\details{
+\strong{Which trees are shown.} By default all trees of the plot, removed
+ones (\code{removal == TRUE}) included -- the same as
+\code{plot()} on the plot object. Removed trees are marked: in the table by
+the column \emph{Ausg.}, on the map by a cross over the tree. Pass
+\code{tree_filter = !removal} for the remaining stand only. Any other
+selection works the same way; a selection other than the default is printed
+on the sheet and becomes part of the file name, so that sheets of the same
+plot with different selections do not overwrite each other.
+
+\strong{Trees without a position} (typically those in the innermost circle,
+whose position is not recorded) appear in the table with an empty distance
+and azimuth. The map cannot show them; a line on the sheet says how many
+there are.
+
+\strong{Small trees} (the \code{small_trees} of the plot, DBH 0) are not
+listed individually. A line on the sheet gives their number, counted as
+trees, not records; \code{tree_filter} does not apply to them.
+
+The table is sorted by tree number. Tree numbers of the form
+\code{"4_13"} are sorted by their numeric parts, so \code{"2_1"} comes
+before \code{"10_1"}.
 }
 \examples{
 \donttest{
@@ -46,6 +87,12 @@ Render an Information Sheet for an Inventory Plot as a PDF File
 # output_dir defaults to tempdir().
 file_path <- data_ex3_sample_fe_inventory$plot[[1]] |>
   plot_info_sheet_pdf()
+basename(file_path)
+
+# The same plot without the removed trees; the selection becomes part of
+# the file name, so both sheets can exist side by side
+file_path <- data_ex3_sample_fe_inventory$plot[[1]] |>
+  plot_info_sheet_pdf(tree_filter = !removal)
 basename(file_path)
 
 # Several sheets in one go (not run here -- one render per plot)

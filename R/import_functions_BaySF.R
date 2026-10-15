@@ -20,8 +20,11 @@
 #' Currently, the following text files must be present in the folder
 #' \code{input_path}:
 #' \describe{
-#'   \item{fdinvbhd.txt: }{Single tree data}
-#'   \item{fdinvba.txt: }{Aggregated information on plot, layer and species level}
+#'   \item{fdinvbhd.txt: }{Tree records. A tree with a position is a single
+#'     tree, identified by its position; only a record without position may
+#'     stand for several trees of the same dimensions (\code{bhd_anz} > 1)}
+#'   \item{fdinvba.txt: }{One row per cohort of a plot (species, stand age and
+#'     stand layer), to which the tree records refer through \code{lfd_satz}}
 #'  \item{fdinvkrs.txt: }{Coordinates, representation areas and similar
 #'    information about each inventory plot}
 #'  \item{fdvikrs.txt: }{Precise definition of the concentric circle samples; can

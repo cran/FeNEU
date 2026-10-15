@@ -263,8 +263,8 @@ service provider -- starts here.
 
 | File | Holds |
 |---|---|
-| `fdinvbhd.txt` | one row per tree: DBH, height, position, mortality |
-| `fdinvba.txt` | per tree: species, stand age, stand layer |
+| `fdinvbhd.txt` | one row per tree record: DBH, height, position, mortality; a tree with a position is a single tree, only a record without position may stand for several trees of the same dimensions (`bhd_anz` > 1) |
+| `fdinvba.txt` | one row per cohort of a plot: species, stand age, stand layer; the tree records refer to it through `lfd_satz` |
 | `fdinvkrs.txt` | per plot: coordinates, slope, represented area, circle class |
 | `fcbestku.txt` | the stand-layer definition |
 | `fdvikrs.txt` | the circle definition (DBH threshold and area per circle) |

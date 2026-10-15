@@ -16,6 +16,9 @@ FeNEU \verb{DESCRIPTION}. They are not pulled in by
 \code{install.packages("FeNEU")}; users who want PDF output must
 install them explicitly:
 \preformatted{install.packages(c("rmarkdown", "kableExtra", "tinytex"))}
+\code{\link{plot_info_sheet_pdf}} additionally needs \pkg{ggrepel} for
+the tree labels on its map:
+\preformatted{install.packages("ggrepel")}
 }
 
 \section{pandoc}{

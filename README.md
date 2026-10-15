@@ -1,6 +1,11 @@
 # FeNEU - Evaluating Forest Inventory Data
 
 <!-- badges: start -->
+[![CRAN
+version](https://www.r-pkg.org/badges/version/FeNEU)](https://CRAN.R-project.org/package=FeNEU)
+[![CRAN
+checks](https://badges.cranchecks.info/worst/FeNEU.svg)](https://cran.r-project.org/web/checks/check_results_FeNEU.html)
+[![Downloads](https://cranlogs.r-pkg.org/badges/grand-total/FeNEU)](https://CRAN.R-project.org/package=FeNEU)
 [![License: AGPL (\>=
 3)](https://img.shields.io/badge/license-AGPL%20(%3E=%203)-blue.svg)](https://CRAN.R-project.org/web/licenses/AGPL-3)
 <!-- badges: end -->
@@ -42,6 +47,9 @@ latter two are external to R and are not installed by
    ```r
    install.packages(c("rmarkdown", "kableExtra", "tinytex"))
    ```
+
+   `plot_info_sheet_pdf()` additionally needs **ggrepel** for the tree
+   labels on its map: `install.packages("ggrepel")`.
 
 2. **Pandoc:** bundled with RStudio, so nothing to do there. Otherwise,
    installers are available from <https://pandoc.org/installing.html>; on

@@ -54,10 +54,17 @@
 #'   backward estimates will be set to \code{NA}. This might save computation
 #'   time when dealing with extensive amounts of data.
 #'
-#' @returns A list comprising five data frames that have exactly the same
-#'   structure, i.e. the same columns as \code{tree_inc_rep$tree_increments},
-#'   however with two additional columns,\code{iv_hub_m3_per_gnfi3}, and
-#'   \code{iv_hub_m3_yr_gnfi3)}. The data frame \code{fills_forward} relates to
+#' @returns A list of eight elements: five data frames with the gap-filling
+#'   estimates (\code{fills_forward}, \code{fills_backward},
+#'   \code{fills_backward_nomatch}, \code{fills_backward_implausible},
+#'   \code{fills_backward_reptrees}), followed by \code{inv_period},
+#'   \code{plot_matches} and \code{method}, which are carried through from
+#'   \code{tree_inc_rep}.
+#'
+#'   The five data frames have exactly the same structure, i.e. the same
+#'   columns as \code{tree_inc_rep$tree_increments}, however with two
+#'   additional columns, \code{iv_hub_m3_ha_per_gnfi3} and
+#'   \code{iv_hub_m3_ha_yr_gnfi3}. The data frame \code{fills_forward} relates to
 #'   trees that were present in the first, but missing in the second inventory.
 #'   Their increment is projected forward up to the mid of the period between
 #'   both inventories. The second data frame \code{fills_backward} comprises
@@ -76,11 +83,12 @@
 #'   fifth data frame \code{fills_backward_reptrees} relates to plausible trees
 #'   that were present in both inventories. While directly calculated increments
 #'   are available for these trees, backward estimates are calculated if
-#'   (\code{include_reptrees}) is \code{TRUE}. This might only be required under
-#'   special circumstances, therefore, the default setting is \code{FALSE}
-#'   for saving time. In the latter case, the columns reserved for the
-#'   increment estimates are set to NA. In addition the list contains the
-#'   elements \code{inv_period} (carried through from
+#'   \code{include_reptrees} is \code{TRUE} (the default); they are what
+#'   \code{fill_option = "all_estimates"} in
+#'   \code{\link{inv_inc_tree_consolidate}} draws on. With
+#'   \code{include_reptrees = FALSE}, the columns reserved for the increment
+#'   estimates are set to NA. The three remaining elements are
+#'   \code{inv_period} (carried through from
 #'   \code{\link{inv_increment_repsurv_ccirc}}), \code{plot_matches}
 #'   (the plot match overview, also from \code{inv_increment_repsurv_ccirc};
 #'   downstream consumers such as

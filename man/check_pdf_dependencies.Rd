@@ -4,14 +4,18 @@
 \alias{check_pdf_dependencies}
 \title{Check R Package and System Dependencies for PDF Rendering}
 \usage{
-check_pdf_dependencies(fun_name)
+check_pdf_dependencies(fun_name, extra_pkgs = character())
 }
 \arguments{
 \item{fun_name}{Character string — the name of the calling \verb{*_pdf()}
 function, used in the error message.}
+
+\item{extra_pkgs}{Character vector of further R packages that only the
+calling function needs on top of \pkg{rmarkdown} and \pkg{kableExtra}
+(e.g. \pkg{ggrepel} for \code{\link{plot_info_sheet_pdf}}). Default: none.}
 }
 \value{
-\code{NULL} invisibly when all dependencies are present.
+\code{TRUE} invisibly when all dependencies are present.
 }
 \description{
 Gate function called at the top of every \verb{*_pdf()} function. Throws an

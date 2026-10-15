@@ -826,11 +826,15 @@ program, or from an inventory service provider – starts here.</p>
 <tbody>
 <tr class="odd">
 <td><code>fdinvbhd.txt</code></td>
-<td>one row per tree: DBH, height, position, mortality</td>
+<td>one row per tree record: DBH, height, position, mortality; a tree
+with a position is a single tree, only a record without position may
+stand for several trees of the same dimensions (<code>bhd_anz</code>
+&gt; 1)</td>
 </tr>
 <tr class="even">
 <td><code>fdinvba.txt</code></td>
-<td>per tree: species, stand age, stand layer</td>
+<td>one row per cohort of a plot: species, stand age, stand layer; the
+tree records refer to it through <code>lfd_satz</code></td>
 </tr>
 <tr class="odd">
 <td><code>fdinvkrs.txt</code></td>

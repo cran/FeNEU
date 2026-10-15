@@ -26,6 +26,9 @@
 #'   \code{install.packages("FeNEU")}; users who want PDF output must
 #'   install them explicitly:
 #'   \preformatted{install.packages(c("rmarkdown", "kableExtra", "tinytex"))}
+#'   \code{\link{plot_info_sheet_pdf}} additionally needs \pkg{ggrepel} for
+#'   the tree labels on its map:
+#'   \preformatted{install.packages("ggrepel")}
 #'
 #' @section pandoc:
 #'   \itemize{
@@ -81,7 +84,11 @@ NULL
 #' @param fun_name Character string — the name of the calling \verb{*_pdf()}
 #'   function, used in the error message.
 #'
-#' @return \code{NULL} invisibly when all dependencies are present.
+#' @param extra_pkgs Character vector of further R packages that only the
+#'   calling function needs on top of \pkg{rmarkdown} and \pkg{kableExtra}
+#'   (e.g. \pkg{ggrepel} for \code{\link{plot_info_sheet_pdf}}). Default: none.
+#'
+#' @return \code{TRUE} invisibly when all dependencies are present.
 #'
 #' @seealso \code{\link{pdf_dependencies}}, \code{\link{diagnose_pdf_toolchain}}
 #'
@@ -97,13 +104,12 @@ NULL
 #'     rmarkdown::pandoc_available()) {
 #'   check_pdf_dependencies("output_base_table_pdf")
 #' }
-check_pdf_dependencies <- function(fun_name) {
+check_pdf_dependencies <- function(fun_name, extra_pkgs = character()) {
 
-  missing_pkgs <- character()
-  if (!requireNamespace("rmarkdown",  quietly = TRUE))
-    missing_pkgs <- c(missing_pkgs, "rmarkdown")
-  if (!requireNamespace("kableExtra", quietly = TRUE))
-    missing_pkgs <- c(missing_pkgs, "kableExtra")
+  needed <- unique(c("rmarkdown", "kableExtra", extra_pkgs))
+  missing_pkgs <- needed[
+    !vapply(needed, requireNamespace, logical(1), quietly = TRUE)
+  ]
 
   if (length(missing_pkgs) > 0L) {
     stop(

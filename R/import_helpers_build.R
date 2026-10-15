@@ -44,8 +44,14 @@
 #   bhd         DBH in cm
 #   bhd_h       height in m (NA allowed)
 #   pol_wink    azimuth in degrees
-#   pol_entf    distance in m
-#   bhd_anz     count (usually 1)
+#   pol_entf    distance in CENTIMETRES -- the BaySF pre convention. The raw
+#               converters bring their own unit into it: Format 1 and the BW
+#               reader multiply their metre values by 100, Format 2's source is
+#               already in cm. On the way out, make_object_lists() divides by
+#               100 again. (This line said "in m" up to and including 3.0.2,
+#               and Format 1 did what the line said.)
+#   bhd_anz     count; 1 for every tree with a position (it is identified by
+#               it), > 1 only for records without position
 #   hmb         height-measured flag ("J" / NA)
 #   ba_fe       numeric species code
 #   best_ku     layer code (integer)

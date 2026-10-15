@@ -48,6 +48,63 @@ test_that("format1 converter writes the pre files and returns an ok report", {
   expect_setequal(basename(res$paths), .baysf_pre_files)
 })
 
+# Up to and including 3.0.2 this was wrong, and nothing here noticed: Format 1
+# records the distance from the plot centre in metres, the BaySF pre format
+# stores centimetres, and the converter only renamed the column. Every tree
+# position came out at a hundredth of its true distance -- on ex1, whose
+# outermost circle has a radius of 17.84 m, no tree sat further than 17 cm from
+# the centre. The aggregates were unaffected, which is why it stayed hidden:
+# the circle a tree belongs to is decided by its DBH, not by its position.
+test_that("format1 writes pol_entf in centimetres, not in the metres it reads", {
+  skip_below_depth("full")
+
+  in_dir  <- .write_concentric_raw()
+  out_dir <- tempfile(); dir.create(out_dir)
+
+  res <- suppressMessages(suppressWarnings(
+    import_sample_concentric_format1_raw_to_pre(
+      input_path           = in_dir,
+      output_dir           = out_dir,
+      treelist_filename    = "tree_layer",
+      inv_punkt_filename   = "inventory_points",
+      small_trees_filename = "ingrowth",
+      species_guess        = TRUE,
+      dbh_cm_from          = c(0, 12, 30, 48),
+      radiuses_m           = c(2.82, 5.64, 11.28, 17.84),
+      coord_sys            = "gk4"
+    )
+  ))
+  expect_true(res$ok)
+
+  raw <- round(data_ex1_sample_raw_trees$distance, 6)
+  raw <- raw[!is.na(raw)]
+  pre <- readr::read_delim(file.path(out_dir, "fdinvbhd.txt"), delim = "\t",
+                           show_col_types = FALSE)$pol_entf
+  pre <- pre[!is.na(pre)]
+
+  # Every distance written must be a hundred times one that was read. Stated
+  # this way rather than row by row, because the converter legitimately drops
+  # trees on the way (those beyond the innermost circle without a position).
+  expect_true(length(pre) > 0)
+  expect_true(all(round(pre / 100, 6) %in% raw))
+
+  # ... and the consequence a user would see: make_object_lists() divides by
+  # 100 again, so the positions must land back on the metres that were read,
+  # inside the plot rather than in a heap on its centre.
+  inv <- suppressMessages(suppressWarnings(
+    import_sample_concentric_pre_to_fe_inventory(out_dir, coord_sys = "gk4")
+  ))
+  radii <- unlist(lapply(inv$plot, function(p) {
+    if (is.null(p$tree_positions)) NULL else p$tree_positions$R
+  }))
+  radii <- radii[is.finite(radii)]
+
+  expect_true(length(radii) > 0)
+  expect_true(all(round(radii, 6) %in% raw))
+  expect_lte(max(radii), 17.84)          # the outermost circle of ex1
+  expect_gt(max(radii), 5)               # not shrunk by a factor of a hundred
+})
+
 test_that("format1 tree list is decimal-mark tolerant (comma vs. point)", {
   common <- list(
     inv_punkt_filename   = "inventory_points",

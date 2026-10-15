@@ -156,23 +156,23 @@ import_data_BaySF_inraw <- function(input_path,
   }
 
 
-  fdivkrs <- data.frame()
-
   if (!("fdivkrs" %in% all_files)) {
     # generate file or call it (in the future) from shinny
 
-    # Create the fdvikrs data frame
+    # Create the fdvikrs data frame; kreis_fl is the circle area in ha, as in
+    # the pre files the other converters write (see import_helpers_build.R)
     fdvikrs <- data.frame(
       bhd_von = bhds_from,
-      kreis_fl = radiuses * pi^2,
-      fe_ikl = seq(1, length(bhds_from)),
+      kreis_fl = (radiuses^2 * pi) / 10000,
+      fe_ikl = seq(1, length(bhds_from))
     )
 
     fe_ikl_krs <- unique(fdvikrs$fe_ikl)
 
-    #check that fe_ikl matches the one in the circles keys
+    # check that every circle class the plots refer to (fdinvkrs) is defined
+    # in fdvikrs
 
-    if (unique(fdivkrs$fe_ikl %in% fe_ikl_krs) != TRUE) {
+    if (!all(fdinvkrs$fe_ikl %in% fe_ikl_krs)) {
       stop(fe_msg("fe_ikl_mismatch"))
     }
 

@@ -517,7 +517,9 @@ import_sample_concentric_format2_raw_to_pre <- function(input_path,
       # (make_object_lists divides by 100 -> m). The raw Format-2 value is
       # already cm, so it is written through unchanged. (Previously divided by
       # 100 here, which -- on top of the /100 in make_object_lists -- shrank all
-      # tree positions 100-fold and made the out-of-circle check inert.)
+      # tree positions 100-fold. Nothing noticed: every tree then sat well
+      # inside its circle, and FeNEU does not compare a tree's distance with
+      # the radius of the circle its DBH belongs to.)
       pol_entf = .data$pol_entf,
       # pol_wink in fdinvbhd is always in degrees.
       # Priority: 1) use pol_wink if set; 2) if pol_entf is NA there is no
